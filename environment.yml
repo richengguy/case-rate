@@ -1,0 +1,9 @@
+name: case-rate
+channels:
+  - conda-forge
+  - default
+dependencies:
+  - python=3.8
+  - pip
+  - pip:
+    - -e .[dev]
