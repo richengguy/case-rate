@@ -1,4 +1,5 @@
 import pathlib
+from typing import Optional
 
 import click
 
@@ -47,14 +48,30 @@ def download(ctx: click.Context, repo):
 
 
 @main.command()
+@click.option('-c', '--country', nargs=1,
+              help='Select reports for a single country.')
 @click.pass_context
-def info(ctx: click.Context):
+def info(ctx: click.Context, country: Optional[str]):
     '''Get information about the contents of the COVID-19 data set.'''
     dataset = Dataset(ctx.obj['DATASET_PATH'])
-    click.secho('Daily Reports: ', bold=True, nl='')
-    click.echo(len(dataset.reports))
-    click.echo('  - First: {}-{:02}-{:02}'.format(*(dataset.reports.dates[0])))
-    click.echo('  - Last:  {}-{:02}-{:02}'.format(*(dataset.reports.dates[-1])))
+    reports = dataset.reports
+
+    if country is not None:
+        reports = reports.for_country(country)
+
+    click.secho('Available Reports: ', bold=True, nl=False)
+    click.echo(len(reports))
+
+    if country is not None:
+        click.secho('Country: ', bold=True, nl=False)
+        click.echo(country)
+
+    click.echo('First: {}-{:02}-{:02}'.format(*(reports.dates[0])))
+    click.echo('  - Confirmed: {}'.format(reports.reports[0].total_confirmed))
+    click.echo('  - Recovered: {}'.format(reports.reports[0].total_recovered))
+    click.echo('Last:  {}-{:02}-{:02}'.format(*(reports.dates[-1])))
+    click.echo('  - Confirmed: {}'.format(reports.reports[-1].total_confirmed))
+    click.echo('  - Recovered: {}'.format(reports.reports[-1].total_recovered))
 
 
 @main.command()

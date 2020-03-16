@@ -1,8 +1,9 @@
 from collections import OrderedDict
 import csv
+import functools
 import pathlib
 import subprocess
-from typing import List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import click
 
@@ -26,32 +27,144 @@ def _git(*args, cwd: pathlib.Path = None):
 
 
 def _parse_name(csvfile: pathlib.Path) -> Tuple[int, int, int]:
-        '''Parse the month-day-year file name format.
+    '''Parse the month-day-year file name format.
 
-        Parameters
-        ----------
-        csvfile : pathlib.Path
-            path to one of the daily report CSV files
+    Parameters
+    ----------
+    csvfile : pathlib.Path
+        path to one of the daily report CSV files
 
-        Returns
-        -------
-        Tuple[int, int, int]
-            a ``(year, month, day)`` tuple
-        '''
-        name = csvfile.stem
-        parts = name.split('-')
-        return int(parts[2]), int(parts[0]), int(parts[1])
+    Returns
+    -------
+    Tuple[int, int, int]
+        a ``(year, month, day)`` tuple
+    '''
+    name = csvfile.stem
+    parts = name.split('-')
+    return int(parts[2]), int(parts[0]), int(parts[1])
+
+
+class Entry(object):
+    '''A single entry within a daily report.
+
+    Attributes
+    ----------
+    province: str or ``None``
+        the sub-national region the entry is for; optional
+    country: str
+        the country the entry is for
+    confirmed: int
+        number of confirmed COVID-19 cases
+    deaths: int
+        number of COVID-19-related deaths
+    recovered: int
+        number of confirmed COVID-19 recoveries
+    '''
+    class _Fields(object):
+        PROVINCE = 'Province/State'
+        COUNTRY = 'Country/Region'
+        CONFIRMED = 'Confirmed'
+        DEATHS = 'Deaths'
+        RECOVERED = 'Recovered'
+
+    def __init__(self, row):
+        def get(row: dict, field: str) -> Optional[str]:
+            try:
+                return row[field]
+            except KeyError:
+                return None
+
+        def to_int(row: dict, field: str) -> int:
+            value = get(row, field)
+            if value is None:
+                return 0
+
+            try:
+                return int(value)
+            except ValueError:
+                return 0
+
+        self.province = get(row, Entry._Fields.PROVINCE)
+        self.country = get(row, Entry._Fields.COUNTRY)
+        self.confirmed = to_int(row, Entry._Fields.CONFIRMED)
+        self.deaths = to_int(row, Entry._Fields.DEATHS)
+        self.recovered = to_int(row, Entry._Fields.RECOVERED)
 
 
 class DailyReport(object):
-    '''Represents the contents of a single "daily report" CSV file.'''
-    def __init__(self, path: pathlib.Path):
+    '''Represents the contents of a single "daily report" CSV file.
+
+    Attributes
+    ----------
+    entries: list of ``Entry`` instances
+        a list of all entries within the report
+    '''
+    def __init__(self,
+                 path: Optional[pathlib.Path] = None,
+                 entries: Optional[List[Entry]] = None):
         '''
         Parameters
         ----------
-        path : pathlib.Path
+        path : pathlib.Path or ``None``
             path to the report CSV file
+        entries: list of ``Entry`` objects, or ``None``
         '''
+        if path is None and entries is None:
+            raise ValueError('Need to provide either CSV path or entries.')
+        if path is not None and entries is not None:
+            raise ValueError('Can only have either path or entries, not both.')
+
+        if path is not None:
+            with path.open() as f:
+                report = csv.DictReader(f)
+                self._entries = [Entry(row) for row in report]
+        elif entries is not None:
+            self._entries = entries.copy()
+
+    def __len__(self):
+        return len(self._entries)
+
+    @property
+    def entries(self) -> List[Entry]:
+        return self._entries
+
+    @property
+    def total_confirmed(self) -> int:
+        '''Number of total confirmed cases in the report.'''
+        return self.reduce(lambda confirmed, entry: confirmed + entry.confirmed)  # noqa: E501
+
+    @property
+    def total_deaths(self) -> int:
+        '''Number of total deaths in the report.'''
+        return self.reduce(lambda deaths, entry: deaths + entry.deaths)
+
+    @property
+    def total_recovered(self) -> int:
+        '''Number of total recoveries in the report.'''
+        return self.reduce(lambda recovered, entry: recovered + entry.recovered)  # noqa: E501
+
+    def reduce(self, fn: Callable[[int, Entry], int]) -> int:
+        '''Applies a reduction onto the report entries.'''
+        return functools.reduce(fn, self._entries, 0)
+
+    def for_country(self, country: str) -> 'DailyReport':
+        '''Obtain all reports for the particular country.
+
+        Parameters
+        ----------
+        country : str
+            the country name
+
+        Returns
+        -------
+        DailyReport
+            another daily report with just the entries for that country
+        '''
+        return DailyReport(
+            entries=[
+                entry for entry in self._entries if entry.country == country
+            ]
+        )
 
 
 class ReportCollection(object):
@@ -65,25 +178,37 @@ class ReportCollection(object):
     dates: list of ``(year, month, day)``
         a list of all available dates within the report collection
     '''
-    def __init__(self, path: pathlib.Path):
+    def __init__(self,
+                 path: Optional[pathlib.Path] = None,
+                 subset: Optional[OrderedDict] = None):
         '''
         Parameters
         ----------
         path : pathlib.Path
             path to the reports folder
+        subset: collections.OrderedDict
+            a subset of the reports, used to generate a new collection
         '''
-        files = path.glob('*.csv')
+        if path is None and subset is None:
+            raise ValueError('Need to provide either CSV path or entries.')
+        if path is not None and subset is not None:
+            raise ValueError('Can only have either path or entries, not both.')
 
-        reports = []
-        for csvfile in files:
-            date = _parse_name(csvfile)
-            reports.append((date, DailyReport(csvfile)))
+        if path is not None:
+            files = path.glob('*.csv')
 
-        reports.sort(key=lambda entry: entry[0][2])  # sort by day
-        reports.sort(key=lambda entry: entry[0][1])  # sort by month
-        reports.sort(key=lambda entry: entry[0][0])  # sort by year
+            reports = []
+            for csvfile in files:
+                date = _parse_name(csvfile)
+                reports.append((date, DailyReport(csvfile)))
 
-        self._reports = OrderedDict(reports)
+            reports.sort(key=lambda entry: entry[0][2])  # sort by day
+            reports.sort(key=lambda entry: entry[0][1])  # sort by month
+            reports.sort(key=lambda entry: entry[0][0])  # sort by year
+
+            self._reports = OrderedDict(reports)
+        elif subset is not None:
+            self._reports = subset
 
     def __len__(self):
         return len(self._reports)
@@ -91,6 +216,31 @@ class ReportCollection(object):
     @property
     def dates(self) -> List[Tuple[int, int, int]]:
         return list(self._reports.keys())
+
+    @property
+    def reports(self) -> List[DailyReport]:
+        return list(self._reports.values())
+
+    def for_country(self, country: str) -> 'ReportCollection':
+        '''Obtain the set of reports for just a single country.
+
+        Parameters
+        ----------
+        country: str
+            the name of the country
+
+        Returns
+        -------
+        ReportCollection
+            a new report with information on just that country
+        '''
+        subset: OrderedDict[Tuple[int, int, int], DailyReport] = OrderedDict()
+        for date, report in self._reports.items():
+            entries = report.for_country(country)
+            if len(entries) > 0:
+                subset[date] = entries
+
+        return ReportCollection(subset=subset)
 
 
 class Dataset(object):
@@ -113,7 +263,7 @@ class Dataset(object):
         '''
         if not path.exists():
             raise ValueError(f'{path} does not exist.')
-        self._reports = ReportCollection(path / Dataset.DAILY_REPORTS)
+        self._reports = ReportCollection(path=path / Dataset.DAILY_REPORTS)
 
     @property
     def reports(self):
