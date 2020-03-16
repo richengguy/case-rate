@@ -1,1 +1,1 @@
-# case-rate
+# COVID-19 Case Rate Tracking
