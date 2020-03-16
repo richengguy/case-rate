@@ -1,15 +1,29 @@
 import pathlib
+from typing import Optional, Tuple
 
 import click
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
 
-from case_rate.dataset import Dataset
+from case_rate import Dataset, ReportSet, TimeSeries
 
 
 @click.group()
-def main():
+@click.option('-d', '--dataset',
+              type=click.Path(file_okay=False, dir_okay=True),
+              help='Dataset storage path.',
+              default='./covid19_repo', show_default=True)
+@click.pass_context
+def main(ctx: click.Context, dataset):
     '''Process case rate data for COVID-19.'''
     click.secho('COVID-19 Case Rates', bold=True)
     click.secho('--', bold=True)
+    ctx.ensure_object(dict)
+    ctx.obj['DATASET_PATH'] = pathlib.Path(dataset)
+
+    click.secho('Dataset Path: ', bold=True, nl=False)
+    click.echo(ctx.obj['DATASET_PATH'])
 
 
 @main.command()
@@ -17,11 +31,8 @@ def main():
               help='Path to the CSSE COVID-19 repo.',
               default='https://github.com/CSSEGISandData/COVID-19.git',
               show_default=True)
-@click.option('-o', '--output',
-              type=click.Path(file_okay=False, dir_okay=True),
-              help='Repository storage path.',
-              default='./covid19_repo', show_default=True)
-def download(repo, output):
+@click.pass_context
+def download(ctx: click.Context, repo):
     '''Download the latest COVID-19 data from the JHU CSSE repository.
 
     This will do one of two things:
@@ -33,16 +44,122 @@ def download(repo, output):
     By default, it accesses the 'CSSEGISandData/COVID-19' GitHub repo.  An
     alternate repo can be specified with the '-r' flag.
     '''
-    output = pathlib.Path(output)
-    if output.exists():
-        Dataset.update(output)
+    if ctx.obj['DATASET_PATH'].exists():
+        Dataset.update(ctx.obj['DATASET_PATH'])
     else:
-        Dataset.create(repo, output)
+        Dataset.create(repo, ctx.obj['DATASET_PATH'])
 
 
 @main.command()
-def plot():
+@click.option('-c', '--country', nargs=1,
+              help='Select reports for a single country.')
+@click.option('--details', is_flag=True, help='Show the full report table.')
+@click.pass_context
+def info(ctx: click.Context, country: Optional[str], details: bool):
+    '''Get information about the contents of the COVID-19 data set.'''
+    dataset = Dataset(ctx.obj['DATASET_PATH'])
+    reports = dataset.reports
+
+    if country is not None:
+        reports = reports.for_country(country)
+
+    click.secho('Available Reports: ', bold=True, nl=False)
+    click.echo(len(reports))
+
+    if country is not None:
+        click.secho('Country: ', bold=True, nl=False)
+        click.echo(country)
+
+    click.echo('First: {}-{:02}-{:02}'.format(*(reports.dates[0])))
+    click.echo('  - Confirmed: {}'.format(reports.reports[0].total_confirmed))
+    click.echo('  - Recovered: {}'.format(reports.reports[0].total_recovered))
+    click.echo('Last:  {}-{:02}-{:02}'.format(*(reports.dates[-1])))
+    click.echo('  - Confirmed: {}'.format(reports.reports[-1].total_confirmed))
+    click.echo('  - Recovered: {}'.format(reports.reports[-1].total_recovered))
+
+    if details:
+        click.secho('Reporting:', bold=True)
+        click.echo('{:>10} {:>10} {:>10} {:>10}'.format('Date', 'Confirmed', 'Deaths', 'Resolved'))  # noqa: E501
+        timeseries = TimeSeries(reports)
+        for date, (confirmed, deaths, resolved) in zip(timeseries.dates, timeseries.as_list()):  # noqa: E501
+            click.echo('{:10} {:10} {:10} {:10}'.format(str(date), confirmed, deaths, resolved))  # noqa: E501
+
+
+@main.command()
+@click.option('-c', '--country', 'countries', nargs=1, multiple=True,
+              help='Plot results for a single country.')
+@click.pass_context
+def plot(ctx: click.Context, countries: Tuple[str]):
     '''Generates plots from the downloaded COVID-19 data.'''
+    dataset = Dataset(ctx.obj['DATASET_PATH'])
+    click.secho('Plotting: ', bold=True, nl=False)
+
+    def plot_confirmed(reports: ReportSet, name: str):
+        timeseries = TimeSeries(reports)
+        plt.semilogy(timeseries.dates, timeseries.confirmed, label=name)
+
+    if len(countries) == 0:
+        click.echo('all reports')
+        plot_confirmed(dataset.reports, 'all')
+    else:
+        click.echo(', '.join(countries))
+        for country in countries:
+            plot_confirmed(dataset.for_country(country), country)
+
+    plt.title('COVID-19 Cases')
+    plt.xlabel('Date')
+    plt.ylabel('Confirmed')
+    plt.legend()
+    plt.xticks(rotation=30)
+    plt.show()
+
+
+@main.command()
+@click.argument('first', metavar='COUNTRY', nargs=1)
+@click.argument('second', metavar='COUNTRY', nargs=1)
+@click.pass_context
+def compare(ctx: click.Context, first: str, second: str):
+    '''Compare the 'confirmed' curves of two countries.'''
+    dataset = Dataset(ctx.obj['DATASET_PATH'])
+    click.secho('Comparing: ', bold=True, nl=False)
+    click.echo(f"{first} {second}")
+
+    countryA = TimeSeries(dataset.for_country(first))
+    countryB = TimeSeries(dataset.for_country(second))
+
+    # Compute the cross-correlation between two countries.
+    xcorr = TimeSeries.crosscorrelate(countryA, countryB)
+    ind = np.argmax(xcorr[:, 1])
+    click.secho('Maximum Lag: ', bold=True, nl=False)
+    click.echo(f'{xcorr[ind, 0]} days')
+
+    fig = plt.figure()
+    gs = gridspec.GridSpec(2, 2)
+
+    ax = fig.add_subplot(gs[0, 0])
+    ax.plot(countryA.dates, countryA.confirmed, label=first)
+    ax.plot(countryB.dates, countryB.confirmed, label=second)
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Cases')
+    ax.set_title(f'{first}/{second} Confirmed')
+    plt.setp(ax.get_xticklabels(), rotation=30)
+
+    ax = fig.add_subplot(gs[0, 1])
+    ax.semilogy(countryA.dates, countryA.confirmed, label=first)
+    ax.semilogy(countryB.dates, countryB.confirmed, label=second)
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Cases')
+    ax.set_title(f'{first}/{second} Confirmed (Log-scale)')
+    plt.setp(ax.get_xticklabels(), rotation=30)
+
+    ax = fig.add_subplot(gs[1, :])
+    ax.plot(xcorr[:, 0], xcorr[:, 1])
+    ax.plot(xcorr[ind, 0], xcorr[ind, 1], 'x')
+    ax.vlines(x=xcorr[ind, 0], ymin=0, ymax=xcorr[ind, 1])
+    ax.set_xlabel(f'Lag (Days); max @ {xcorr[ind, 0]}')
+    ax.set_ylabel('Correlation Coefficient')
+
+    plt.show()
 
 
 if __name__ == '__main__':
