@@ -9,6 +9,14 @@ import numpy as np
 from case_rate import Dataset, ReportSet, TimeSeries
 
 
+def preamble(ctx: click.Context):
+    '''Print the command preamble.'''
+    click.secho('COVID-19 Case Rates', bold=True)
+    click.secho('--', bold=True)
+    click.secho('Dataset Path: ', bold=True, nl=False)
+    click.echo(ctx.obj['DATASET_PATH'])
+
+
 @click.group()
 @click.option('-d', '--dataset',
               type=click.Path(file_okay=False, dir_okay=True),
@@ -17,13 +25,8 @@ from case_rate import Dataset, ReportSet, TimeSeries
 @click.pass_context
 def main(ctx: click.Context, dataset):
     '''Process case rate data for COVID-19.'''
-    click.secho('COVID-19 Case Rates', bold=True)
-    click.secho('--', bold=True)
     ctx.ensure_object(dict)
     ctx.obj['DATASET_PATH'] = pathlib.Path(dataset)
-
-    click.secho('Dataset Path: ', bold=True, nl=False)
-    click.echo(ctx.obj['DATASET_PATH'])
 
 
 @main.command()
@@ -44,6 +47,7 @@ def download(ctx: click.Context, repo):
     By default, it accesses the 'CSSEGISandData/COVID-19' GitHub repo.  An
     alternate repo can be specified with the '-r' flag.
     '''
+    preamble(ctx)
     if ctx.obj['DATASET_PATH'].exists():
         Dataset.update(ctx.obj['DATASET_PATH'])
     else:
@@ -61,6 +65,7 @@ def info(ctx: click.Context, country: Optional[str], details: bool):
     This will prodcue some general informattion about the data set or, if
     specified, the particular country.
     '''
+    preamble(ctx)
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     reports = dataset.reports
 
@@ -98,6 +103,7 @@ def plot(ctx: click.Context, countries: Tuple[str]):
 
     This will generate plots for the confirmed cases along a semi-log y-axis.
     '''
+    preamble(ctx)
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     click.secho('Plotting: ', bold=True, nl=False)
 
@@ -142,6 +148,7 @@ def compare(ctx: click.Context, first: str, second: str):
     The lower the maximum cross-correlation score, the less similar the two
     curves are, which can indicate a divergence.
     '''
+    preamble(ctx)
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     click.secho('Comparing: ', bold=True, nl=False)
     click.echo(f"{first} {second}")
