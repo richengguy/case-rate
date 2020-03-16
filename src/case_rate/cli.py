@@ -3,7 +3,7 @@ from typing import Optional
 
 import click
 
-from case_rate.dataset import Dataset
+from case_rate import Dataset, TimeSeries
 
 
 @click.group()

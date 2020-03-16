@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import csv
-import datetime
 import functools
 import pathlib
 import subprocess
