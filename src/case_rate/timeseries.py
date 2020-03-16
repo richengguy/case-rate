@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-from case_rate.dataset import DailyReport, Report
+from case_rate.dataset import Report, ReportSet
 
 
 class TimeSeries(object):
@@ -23,19 +23,19 @@ class TimeSeries(object):
     recovered: list of ``int``
         number of confirmed COVID-19 recoveries
     '''
-    def __init__(self, report: Report):
+    def __init__(self, reports: ReportSet):
         '''
         Parameters
         ----------
-        dataset : Dataset
-            the data set the time seris is for.
+        reports: ReportSet
+            the report set to represent as a time series
         '''
-        daily: DailyReport
-        self.dates = [datetime.date(year, month, day) for year, month, day in report.dates]  # noqa: E501
+        daily: Report
+        self.dates = [datetime.date(year, month, day) for year, month, day in reports.dates]  # noqa: E501
         self.days = [(self.dates[0] - date) for date in self.dates]
-        self.confirmed = [daily.total_confirmed for daily in report.reports]
-        self.deaths = [daily.total_deaths for daily in report.reports]
-        self.recovered = [daily.total_recovered for daily in report.reports]
+        self.confirmed = [daily.total_confirmed for daily in reports.reports]
+        self.deaths = [daily.total_deaths for daily in reports.reports]
+        self.recovered = [daily.total_recovered for daily in reports.reports]
 
     def as_list(self) -> List[Tuple[int, int, int]]:
         '''Convert the time series into a list.'''

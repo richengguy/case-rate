@@ -91,7 +91,7 @@ class Entry(object):
         self.recovered = to_int(row, Entry._Fields.RECOVERED)
 
 
-class DailyReport(object):
+class Report(object):
     '''Represents the contents of a single "daily report" CSV file.
 
     Attributes
@@ -147,7 +147,7 @@ class DailyReport(object):
         '''Applies a reduction onto the report entries.'''
         return functools.reduce(fn, self._entries, 0)
 
-    def for_country(self, country: str) -> 'DailyReport':
+    def for_country(self, country: str) -> 'Report':
         '''Obtain all reports for the particular country.
 
         Parameters
@@ -157,17 +157,17 @@ class DailyReport(object):
 
         Returns
         -------
-        DailyReport
+        Report
             another daily report with just the entries for that country
         '''
-        return DailyReport(
+        return Report(
             entries=[
                 entry for entry in self._entries if entry.country == country
             ]
         )
 
 
-class Report(object):
+class ReportSet(object):
     '''A report of all COVID-19 cases in the dataset.
 
     This provides a simple mechanism to represent the contents of the
@@ -200,7 +200,7 @@ class Report(object):
             reports = []
             for csvfile in files:
                 date = _parse_name(csvfile)
-                reports.append((date, DailyReport(csvfile)))
+                reports.append((date, Report(csvfile)))
 
             reports.sort(key=lambda entry: entry[0][2])  # sort by day
             reports.sort(key=lambda entry: entry[0][1])  # sort by month
@@ -218,10 +218,10 @@ class Report(object):
         return list(self._reports.keys())
 
     @property
-    def reports(self) -> List[DailyReport]:
+    def reports(self) -> List[Report]:
         return list(self._reports.values())
 
-    def for_country(self, country: str) -> 'Report':
+    def for_country(self, country: str) -> 'ReportSet':
         '''Obtain the set of reports for just a single country.
 
         Parameters
@@ -231,16 +231,16 @@ class Report(object):
 
         Returns
         -------
-        Report
-            a new report with information on just that country
+        ReportSet
+            a new report set with information on just that country
         '''
-        subset: OrderedDict[Tuple[int, int, int], DailyReport] = OrderedDict()
+        subset: OrderedDict[Tuple[int, int, int], Report] = OrderedDict()
         for date, report in self._reports.items():
             entries = report.for_country(country)
             if len(entries) > 0:
                 subset[date] = entries
 
-        return Report(subset=subset)
+        return ReportSet(subset=subset)
 
 
 class Dataset(object):
@@ -263,13 +263,13 @@ class Dataset(object):
         '''
         if not path.exists():
             raise ValueError(f'{path} does not exist.')
-        self._reports = Report(path=path / Dataset.DAILY_REPORTS)
+        self._reports = ReportSet(path=path / Dataset.DAILY_REPORTS)
 
     @property
-    def reports(self):
+    def reports(self) -> ReportSet:
         return self._reports
 
-    def for_country(self, country: str) -> Report:
+    def for_country(self, country: str) -> ReportSet:
         '''Obtain the reports for a particular country.
 
         Parameters
@@ -279,7 +279,7 @@ class Dataset(object):
 
         Returns
         -------
-        ReportCollection
+        ReportSet
             case data for just that country
         '''
         return self._reports.for_country(country)
