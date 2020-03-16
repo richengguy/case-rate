@@ -3,9 +3,8 @@ from typing import Optional, Tuple
 
 import click
 import matplotlib.pyplot as plt
-import numpy as np
 
-from case_rate import Dataset, TimeSeries
+from case_rate import Dataset, ReportSet, TimeSeries
 
 
 @click.group()
@@ -91,17 +90,25 @@ def info(ctx: click.Context, country: Optional[str], details: bool):
 def plot(ctx: click.Context, countries: Tuple[str]):
     '''Generates plots from the downloaded COVID-19 data.'''
     dataset = Dataset(ctx.obj['DATASET_PATH'])
-    if len(countries) == 0:
-        reports = dataset.reports
+    click.secho('Plotting: ', bold=True, nl=False)
+
+    def plot_confirmed(reports: ReportSet, name: str):
         timeseries = TimeSeries(reports)
-        confirmed = np.array(timeseries.confirmed)
-        plt.plot(timeseries.days, np.log10(confirmed))
+        plt.semilogy(timeseries.dates, timeseries.confirmed, label=name)
+
+    if len(countries) == 0:
+        click.echo('all reports')
+        plot_confirmed(dataset.reports, 'all')
     else:
+        click.echo(', '.join(countries))
         for country in countries:
-            reports = dataset.for_country(country)
-            timeseries = TimeSeries(reports)
-            confirmed = np.array(timeseries.confirmed)
-            plt.plot(timeseries.days, np.log10(confirmed))
+            plot_confirmed(dataset.for_country(country), country)
+
+    plt.title('COVID-19 Cases')
+    plt.xlabel('Date')
+    plt.ylabel('Confirmed')
+    plt.legend()
+    plt.xticks(rotation=30)
 
     plt.show()
 
