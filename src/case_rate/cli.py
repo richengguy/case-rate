@@ -56,7 +56,11 @@ def download(ctx: click.Context, repo):
 @click.option('--details', is_flag=True, help='Show the full report table.')
 @click.pass_context
 def info(ctx: click.Context, country: Optional[str], details: bool):
-    '''Get information about the contents of the COVID-19 data set.'''
+    '''Get information about the contents of the COVID-19 data set.
+
+    This will prodcue some general informattion about the data set or, if
+    specified, the particular country.
+    '''
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     reports = dataset.reports
 
@@ -90,7 +94,10 @@ def info(ctx: click.Context, country: Optional[str], details: bool):
               help='Plot results for a single country.')
 @click.pass_context
 def plot(ctx: click.Context, countries: Tuple[str]):
-    '''Generates plots from the downloaded COVID-19 data.'''
+    '''Generates plots from the downloaded COVID-19 data.
+
+    This will generate plots for the confirmed cases along a semi-log y-axis.
+    '''
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     click.secho('Plotting: ', bold=True, nl=False)
 
@@ -119,7 +126,22 @@ def plot(ctx: click.Context, countries: Tuple[str]):
 @click.argument('second', metavar='COUNTRY', nargs=1)
 @click.pass_context
 def compare(ctx: click.Context, first: str, second: str):
-    '''Compare the 'confirmed' curves of two countries.'''
+    '''Compare the 'confirmed' curves of two countries.
+
+    Assuming that the epidemiological curves are logistic (i.e. sigmoidal),
+    then the two curves are log-linear during the exponential growth phase.
+    This means that the normalized cross-correlation between the curves
+    provides two pieces of information:
+
+     - Whether or not one curve is leading or lagging the other, as given by
+       the point in time where the cross-correlation is at a maximum.
+
+     - The similarity between the two curves, where a value closer to '1' means
+       that the two curves are more similar.
+
+    The lower the maximum cross-correlation score, the less similar the two
+    curves are, which can indicate a divergence.
+    '''
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     click.secho('Comparing: ', bold=True, nl=False)
     click.echo(f"{first} {second}")
