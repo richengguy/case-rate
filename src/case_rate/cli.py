@@ -2,7 +2,9 @@ import pathlib
 from typing import Optional, Tuple
 
 import click
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import numpy as np
 
 from case_rate import Dataset, ReportSet, TimeSeries
 
@@ -109,6 +111,53 @@ def plot(ctx: click.Context, countries: Tuple[str]):
     plt.ylabel('Confirmed')
     plt.legend()
     plt.xticks(rotation=30)
+    plt.show()
+
+
+@main.command()
+@click.argument('first', metavar='COUNTRY', nargs=1)
+@click.argument('second', metavar='COUNTRY', nargs=1)
+@click.pass_context
+def compare(ctx: click.Context, first: str, second: str):
+    '''Compare the 'confirmed' curves of two countries.'''
+    dataset = Dataset(ctx.obj['DATASET_PATH'])
+    click.secho('Comparing: ', bold=True, nl=False)
+    click.echo(f"{first} {second}")
+
+    countryA = TimeSeries(dataset.for_country(first))
+    countryB = TimeSeries(dataset.for_country(second))
+
+    # Compute the cross-correlation between two countries.
+    xcorr = TimeSeries.crosscorrelate(countryA, countryB)
+    ind = np.argmax(xcorr[:, 1])
+    click.secho('Maximum Lag: ', bold=True, nl=False)
+    click.echo(f'{xcorr[ind, 0]} days')
+
+    fig = plt.figure()
+    gs = gridspec.GridSpec(2, 2)
+
+    ax = fig.add_subplot(gs[0, 0])
+    ax.plot(countryA.dates, countryA.confirmed, label=first)
+    ax.plot(countryB.dates, countryB.confirmed, label=second)
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Cases')
+    ax.set_title(f'{first}/{second} Confirmed')
+    plt.setp(ax.get_xticklabels(), rotation=30)
+
+    ax = fig.add_subplot(gs[0, 1])
+    ax.semilogy(countryA.dates, countryA.confirmed, label=first)
+    ax.semilogy(countryB.dates, countryB.confirmed, label=second)
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Cases')
+    ax.set_title(f'{first}/{second} Confirmed (Log-scale)')
+    plt.setp(ax.get_xticklabels(), rotation=30)
+
+    ax = fig.add_subplot(gs[1, :])
+    ax.plot(xcorr[:, 0], xcorr[:, 1])
+    ax.plot(xcorr[ind, 0], xcorr[ind, 1], 'x')
+    ax.vlines(x=xcorr[ind, 0], ymin=0, ymax=xcorr[ind, 1])
+    ax.set_xlabel(f'Lag (Days); max @ {xcorr[ind, 0]}')
+    ax.set_ylabel('Correlation Coefficient')
 
     plt.show()
 
