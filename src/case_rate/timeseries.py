@@ -32,7 +32,7 @@ class TimeSeries(object):
         '''
         daily: Report
         self.dates = [datetime.date(year, month, day) for year, month, day in reports.dates]  # noqa: E501
-        self.days = [(self.dates[0] - date) for date in self.dates]
+        self.days = [(date - self.dates[0]).days for date in self.dates]
         self.confirmed = [daily.total_confirmed for daily in reports.reports]
         self.deaths = [daily.total_deaths for daily in reports.reports]
         self.recovered = [daily.total_recovered for daily in reports.reports]

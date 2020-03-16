@@ -1,7 +1,9 @@
 import pathlib
-from typing import Optional
+from typing import Optional, Tuple
 
 import click
+import matplotlib.pyplot as plt
+import numpy as np
 
 from case_rate import Dataset, TimeSeries
 
@@ -50,8 +52,9 @@ def download(ctx: click.Context, repo):
 @main.command()
 @click.option('-c', '--country', nargs=1,
               help='Select reports for a single country.')
+@click.option('--details', is_flag=True, help='Show the full report table.')
 @click.pass_context
-def info(ctx: click.Context, country: Optional[str]):
+def info(ctx: click.Context, country: Optional[str], details: bool):
     '''Get information about the contents of the COVID-19 data set.'''
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     reports = dataset.reports
@@ -73,12 +76,34 @@ def info(ctx: click.Context, country: Optional[str]):
     click.echo('  - Confirmed: {}'.format(reports.reports[-1].total_confirmed))
     click.echo('  - Recovered: {}'.format(reports.reports[-1].total_recovered))
 
+    if details:
+        click.secho('Reporting:', bold=True)
+        click.echo('{:>10} {:>10} {:>10} {:>10}'.format('Date', 'Confirmed', 'Deaths', 'Resolved'))  # noqa: E501
+        timeseries = TimeSeries(reports)
+        for date, (confirmed, deaths, resolved) in zip(timeseries.dates, timeseries.as_list()):  # noqa: E501
+            click.echo('{:10} {:10} {:10} {:10}'.format(str(date), confirmed, deaths, resolved))  # noqa: E501
+
 
 @main.command()
+@click.option('-c', '--country', 'countries', nargs=1, multiple=True,
+              help='Plot results for a single country.')
 @click.pass_context
-def plot(ctx: click.Context):
+def plot(ctx: click.Context, countries: Tuple[str]):
     '''Generates plots from the downloaded COVID-19 data.'''
     dataset = Dataset(ctx.obj['DATASET_PATH'])
+    if len(countries) == 0:
+        reports = dataset.reports
+        timeseries = TimeSeries(reports)
+        confirmed = np.array(timeseries.confirmed)
+        plt.plot(timeseries.days, np.log10(confirmed))
+    else:
+        for country in countries:
+            reports = dataset.for_country(country)
+            timeseries = TimeSeries(reports)
+            confirmed = np.array(timeseries.confirmed)
+            plt.plot(timeseries.days, np.log10(confirmed))
+
+    plt.show()
 
 
 if __name__ == '__main__':
