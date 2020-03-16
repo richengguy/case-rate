@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import csv
+import datetime
 import functools
 import pathlib
 import subprocess
@@ -167,8 +168,8 @@ class DailyReport(object):
         )
 
 
-class ReportCollection(object):
-    '''A collection of JHU CSSE daily report CSV files.
+class Report(object):
+    '''A report of all COVID-19 cases in the dataset.
 
     This provides a simple mechanism to represent the contents of the
     repository.
@@ -221,7 +222,7 @@ class ReportCollection(object):
     def reports(self) -> List[DailyReport]:
         return list(self._reports.values())
 
-    def for_country(self, country: str) -> 'ReportCollection':
+    def for_country(self, country: str) -> 'Report':
         '''Obtain the set of reports for just a single country.
 
         Parameters
@@ -231,7 +232,7 @@ class ReportCollection(object):
 
         Returns
         -------
-        ReportCollection
+        Report
             a new report with information on just that country
         '''
         subset: OrderedDict[Tuple[int, int, int], DailyReport] = OrderedDict()
@@ -240,7 +241,7 @@ class ReportCollection(object):
             if len(entries) > 0:
                 subset[date] = entries
 
-        return ReportCollection(subset=subset)
+        return Report(subset=subset)
 
 
 class Dataset(object):
@@ -263,11 +264,26 @@ class Dataset(object):
         '''
         if not path.exists():
             raise ValueError(f'{path} does not exist.')
-        self._reports = ReportCollection(path=path / Dataset.DAILY_REPORTS)
+        self._reports = Report(path=path / Dataset.DAILY_REPORTS)
 
     @property
     def reports(self):
         return self._reports
+
+    def for_country(self, country: str) -> Report:
+        '''Obtain the reports for a particular country.
+
+        Parameters
+        ----------
+        country : str
+            name of the country
+
+        Returns
+        -------
+        ReportCollection
+            case data for just that country
+        '''
+        return self._reports.for_country(country)
 
     @staticmethod
     def create(repo: str, path: pathlib.Path) -> 'Dataset':
