@@ -113,11 +113,17 @@ def plot(ctx: click.Context, countries: Tuple[str]):
         plt.semilogy(timeseries.dates, filtered, label=name)
         plt.semilogy(timeseries.dates, timeseries.confirmed,
                      color='gray', alpha=0.5)
+        plt.annotate(timeseries.confirmed[-1],
+                     (timeseries.dates[-1], timeseries.confirmed[-1]))
 
     def plot_growth_factor(timeseries: TimeSeries, name: str):
         rates = timeseries.growth_factor()
         plt.plot(timeseries.dates, rates[:, 0], label=name)
         plt.fill_between(timeseries.dates, rates[:, 1], rates[:, 2], alpha=0.4)
+
+    def plot_daily_cases(timeseries: TimeSeries, name: str):
+        new_cases = timeseries.daily_new_cases()
+        plt.bar(timeseries.dates, new_cases, label=name)
 
     # Confirmed Cases
     if len(countries) == 0:
@@ -138,10 +144,12 @@ def plot(ctx: click.Context, countries: Tuple[str]):
     plt.figure()
     if len(countries) == 0:
         timeseries = TimeSeries(dataset.reports)
+        xmin = timeseries.dates[0]
+        xmax = timeseries.dates[-1]
         plot_growth_factor(timeseries, 'all')
     else:
-        xmin = None
-        xmax = None
+        xmin = None  # type: ignore
+        xmax = None  # type: ignore
         for country in countries:
             timeseries = TimeSeries(dataset.for_country(country))
             if xmin is None:
@@ -157,6 +165,24 @@ def plot(ctx: click.Context, countries: Tuple[str]):
     plt.xlabel('Date')
     plt.ylabel('Growth Factor')
     plt.hlines(y=1, xmin=xmin, xmax=xmax, linestyles='dashed', alpha=0.8)
+    plt.legend()
+    plt.xticks(rotation=30)
+
+    # Daily New Cases
+    plt.figure()
+    if len(countries) == 0:
+        timeseries = TimeSeries(dataset.reports)
+        plot_daily_cases(timeseries, 'all')
+    else:
+        xmin = None  # type: ignore
+        xmax = None  # type: ignore
+        for country in countries:
+            timeseries = TimeSeries(dataset.for_country(country))
+            plot_daily_cases(timeseries, country)
+
+    plt.title('COVID-19 Daily New Cases')
+    plt.xlabel('Date')
+    plt.ylabel('New Cases')
     plt.legend()
     plt.xticks(rotation=30)
 

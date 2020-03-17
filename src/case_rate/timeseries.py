@@ -20,11 +20,12 @@ class _LeastSq(object):
     def package(self) -> np.ndarray:
         lower = self.slope - self.confidence_slope
         upper = self.slope + self.confidence_slope
+        lower[lower < 0] = 0
         return np.hstack((self.slope, lower, upper))
 
 
 def _local_leastsq(x: np.ndarray, t: np.ndarray, k: int = 7,
-                   alpha: float = 0.9) -> _LeastSq:
+                   alpha: float = 0.95) -> _LeastSq:
     '''Computes the local least-squares on the input time sequence.
 
     This assumes that the input sequence is locally linear (defaults to +/-3
@@ -136,7 +137,23 @@ class TimeSeries(object):
         '''Convert the time series into a numpy array.'''
         return np.array(self.as_list(), dtype=float)
 
-    def growth_factor(self, return_filtered: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:  # noqa: E501
+    def daily_new_cases(self) -> np.ndarray:
+        '''Returns the number of daily confirmed cases.
+
+        This is calculated directly the data without any least-squares local
+        filtering.
+
+        Returns
+        -------
+        np.ndarray
+            an Nx1 array containing the number of new daily confirmed cases
+        '''
+        confirmed = np.array(self.confirmed)
+        delta = np.diff(confirmed)
+        return np.pad(delta, (1, 0))
+
+    def growth_factor(self, confidence: float = 0.95,
+                      return_filtered: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:  # noqa: E501
         '''Computes the time series growth factor.
 
         The growth value is defined as the ratio between successive samples of
@@ -152,6 +169,9 @@ class TimeSeries(object):
 
         Parameters
         ----------
+        confidence : float
+            confidence interval on growth factor estimate; default is 0.95, or
+            95%
         return_filtered : bool
             if set to ``True`` then return the filtered curve
 
@@ -165,10 +185,11 @@ class TimeSeries(object):
         '''
         confirmed = np.array(self.confirmed)
         time = np.array(self.days, dtype=float)
-        filtered = _local_leastsq(confirmed, time)
+        filtered = _local_leastsq(confirmed, time, alpha=confidence)
         filtered_derivatives = filtered.package()
 
-        # Handle derivatives close to zero.
+        # Handle derivatives close to zero and set those values to 'nan' so
+        # that they're ignored when plotting.
         invalid = np.isclose(filtered_derivatives, 0)
         valid = np.logical_not(invalid)
 
