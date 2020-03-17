@@ -1,10 +1,100 @@
 import datetime
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 import scipy.signal
+import scipy.stats
 
 from case_rate.dataset import Report, ReportSet
+
+
+class _LeastSq(object):
+    '''Object returned by the :meth:`_local_leastsq` function.'''
+    def __init__(self, num_samples: int):
+        self.slope = np.zeros((num_samples, 1))
+        self.intercept = np.zeros((num_samples, 1))
+        self.confidence_slope = np.zeros((num_samples, 1))
+        self.confidence_intercept = np.zeros((num_samples, 1))
+        self.smooth = np.zeros((num_samples, 1))
+
+    def package(self) -> np.ndarray:
+        lower = self.slope - self.confidence_slope
+        upper = self.slope + self.confidence_slope
+        return np.hstack((self.slope, lower, upper))
+
+
+def _local_leastsq(x: np.ndarray, t: np.ndarray, k: int = 7,
+                   alpha: float = 0.9) -> _LeastSq:
+    '''Computes the local least-squares on the input time sequence.
+
+    This assumes that the input sequence is locally linear (defaults to +/-3
+    samples before and after current one).  It attempts to fit a line at each
+    point given a local window.
+
+    Parameters
+    ----------
+    data : list of ``int``
+        sample values
+    time : list of ``int``
+        time indices
+    k : int
+        size of the sliding window
+    alpha : float
+        requested confidence interval
+
+    Returns
+    -------
+    np.ndarray
+        a Nx4 array, with the first two columns being the slope and intercept
+        and the other two being their confidence intervals
+    '''
+    if k < 5:
+        raise ValueError('Window size cannot be smaller than "5".')
+
+    if x.shape[0] != t.shape[0]:
+        raise ValueError('Samples and time indices must be same length.')
+
+    num_samples = x.shape[0]
+    result = _LeastSq(num_samples)
+
+    for i in range(num_samples):
+        i_min = max(0, i - k // 2)
+        i_max = min(num_samples - 1, i + k // 2) + 1
+        n = i_max - i_min
+
+        # Compute least square values.
+        x_sum = x[i_min:i_max].sum()
+        t_sum = t[i_min:i_max].sum()
+        t2_sum = (t[i_min:i_max]**2).sum()
+        xt_sum = (x[i_min:i_max]*t[i_min:i_max]).sum()
+
+        # Compute covariances.
+        Sxx = t2_sum - (t_sum**2) / n
+        Sxy = xt_sum - x_sum*t_sum / n
+
+        # Compute parameters.
+        slope = Sxy / Sxx
+        intercept = x_sum / n - slope * t_sum / n
+
+        result.slope[i] = slope
+        result.intercept[i] = intercept
+
+        # Compute confidence intervals.
+        x_est = slope*t[i_min:i_max] + intercept
+        mse = np.sum((x[i_min:i_max] - x_est)**2) / (n - 2)
+
+        stderr_slope = np.sqrt(mse / Sxx)
+        stderr_intercept = np.sqrt(mse / n)
+
+        students_t = scipy.stats.t.ppf(alpha, n - 1)
+
+        result.confidence_slope[i] = students_t*stderr_slope
+        result.confidence_intercept[i] = students_t*stderr_intercept
+
+        # Compute the "smooth" curve value.
+        result.smooth[i] = slope*t[i] + intercept
+
+    return result
 
 
 class TimeSeries(object):
@@ -45,6 +135,63 @@ class TimeSeries(object):
     def as_numpy(self) -> np.ndarray:
         '''Convert the time series into a numpy array.'''
         return np.array(self.as_list(), dtype=float)
+
+    def growth_factor(self, return_filtered: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:  # noqa: E501
+        '''Computes the time series growth factor.
+
+        The growth value is defined as the ratio between successive samples of
+        the time series first derivative.  E.g.,
+
+        ..math::
+
+            G[i] = \\frac{\\Delta_i}{\\Delta_{i-1}}
+
+        It is calculated by using a local least-squares approximation to
+        compute the time series first derivative.  The forward difference is
+        then taken in the log-domain to compute :math:`G[i]`.
+
+        Parameters
+        ----------
+        return_filtered : bool
+            if set to ``True`` then return the filtered curve
+
+        Returns
+        -------
+        growth : np.ndarray
+            a Nx3 array containing the estimated multiplication rate along with
+            the confidence intervals
+        filtered : np.ndarray
+            the filtered time series, produced when estimating the derivatives
+        '''
+        confirmed = np.array(self.confirmed)
+        time = np.array(self.days, dtype=float)
+        filtered = _local_leastsq(confirmed, time)
+        filtered_derivatives = filtered.package()
+
+        # Handle derivatives close to zero.
+        invalid = np.isclose(filtered_derivatives, 0)
+        valid = np.logical_not(invalid)
+
+        log_derivatives = np.zeros_like(filtered_derivatives)
+        log_derivatives[invalid] = np.nan
+        log_derivatives[valid] = np.log10(filtered_derivatives[valid])
+
+        # Compute the growth factor in the log-domain (better numerical
+        # properties).
+        gf = np.zeros_like(filtered_derivatives)
+        for i in range(len(self.confirmed)):
+            if i == 0:
+                continue
+            if invalid[i].any() or invalid[i-1].any():
+                gf[i, :] = np.nan
+
+            delta = log_derivatives[i, :] - log_derivatives[i-1, :]
+            gf[i, :] = np.power(10, delta)
+
+        if return_filtered:
+            return gf, filtered.smooth
+        else:
+            return gf
 
     @staticmethod
     def crosscorrelate(s1: 'TimeSeries', s2: 'TimeSeries') -> np.ndarray:

@@ -109,8 +109,17 @@ def plot(ctx: click.Context, countries: Tuple[str]):
 
     def plot_confirmed(reports: ReportSet, name: str):
         timeseries = TimeSeries(reports)
-        plt.semilogy(timeseries.dates, timeseries.confirmed, label=name)
+        _, filtered = timeseries.growth_factor(return_filtered=True)
+        plt.semilogy(timeseries.dates, filtered, label=name)
+        plt.semilogy(timeseries.dates, timeseries.confirmed,
+                     color='gray', alpha=0.5)
 
+    def plot_growth_factor(timeseries: TimeSeries, name: str):
+        rates = timeseries.growth_factor()
+        plt.plot(timeseries.dates, rates[:, 0], label=name)
+        plt.fill_between(timeseries.dates, rates[:, 1], rates[:, 2], alpha=0.4)
+
+    # Confirmed Cases
     if len(countries) == 0:
         click.echo('all reports')
         plot_confirmed(dataset.reports, 'all')
@@ -124,6 +133,33 @@ def plot(ctx: click.Context, countries: Tuple[str]):
     plt.ylabel('Confirmed')
     plt.legend()
     plt.xticks(rotation=30)
+
+    # Growth Factors
+    plt.figure()
+    if len(countries) == 0:
+        timeseries = TimeSeries(dataset.reports)
+        plot_growth_factor(timeseries, 'all')
+    else:
+        xmin = None
+        xmax = None
+        for country in countries:
+            timeseries = TimeSeries(dataset.for_country(country))
+            if xmin is None:
+                xmin = timeseries.dates[0]
+                xmax = timeseries.dates[-1]
+            else:
+                xmin = min(xmin, timeseries.dates[0])
+                xmax = max(xmax, timeseries.dates[-1])
+
+            plot_growth_factor(timeseries, country)
+
+    plt.title('COVID-19 Growth Factor')
+    plt.xlabel('Date')
+    plt.ylabel('Growth Factor')
+    plt.hlines(y=1, xmin=xmin, xmax=xmax, linestyles='dashed', alpha=0.8)
+    plt.legend()
+    plt.xticks(rotation=30)
+
     plt.show()
 
 
