@@ -9,6 +9,14 @@ import numpy as np
 from case_rate import Dataset, ReportSet, TimeSeries
 
 
+def preamble(ctx: click.Context):
+    '''Print the command preamble.'''
+    click.secho('COVID-19 Case Rates', bold=True)
+    click.secho('--', bold=True)
+    click.secho('Dataset Path: ', bold=True, nl=False)
+    click.echo(ctx.obj['DATASET_PATH'])
+
+
 @click.group()
 @click.option('-d', '--dataset',
               type=click.Path(file_okay=False, dir_okay=True),
@@ -17,13 +25,8 @@ from case_rate import Dataset, ReportSet, TimeSeries
 @click.pass_context
 def main(ctx: click.Context, dataset):
     '''Process case rate data for COVID-19.'''
-    click.secho('COVID-19 Case Rates', bold=True)
-    click.secho('--', bold=True)
     ctx.ensure_object(dict)
     ctx.obj['DATASET_PATH'] = pathlib.Path(dataset)
-
-    click.secho('Dataset Path: ', bold=True, nl=False)
-    click.echo(ctx.obj['DATASET_PATH'])
 
 
 @main.command()
@@ -44,6 +47,7 @@ def download(ctx: click.Context, repo):
     By default, it accesses the 'CSSEGISandData/COVID-19' GitHub repo.  An
     alternate repo can be specified with the '-r' flag.
     '''
+    preamble(ctx)
     if ctx.obj['DATASET_PATH'].exists():
         Dataset.update(ctx.obj['DATASET_PATH'])
     else:
@@ -56,7 +60,12 @@ def download(ctx: click.Context, repo):
 @click.option('--details', is_flag=True, help='Show the full report table.')
 @click.pass_context
 def info(ctx: click.Context, country: Optional[str], details: bool):
-    '''Get information about the contents of the COVID-19 data set.'''
+    '''Get information about the contents of the COVID-19 data set.
+
+    This will prodcue some general informattion about the data set or, if
+    specified, the particular country.
+    '''
+    preamble(ctx)
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     reports = dataset.reports
 
@@ -90,14 +99,33 @@ def info(ctx: click.Context, country: Optional[str], details: bool):
               help='Plot results for a single country.')
 @click.pass_context
 def plot(ctx: click.Context, countries: Tuple[str]):
-    '''Generates plots from the downloaded COVID-19 data.'''
+    '''Generates plots from the downloaded COVID-19 data.
+
+    This will generate plots for the confirmed cases along a semi-log y-axis.
+    '''
+    preamble(ctx)
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     click.secho('Plotting: ', bold=True, nl=False)
 
     def plot_confirmed(reports: ReportSet, name: str):
         timeseries = TimeSeries(reports)
-        plt.semilogy(timeseries.dates, timeseries.confirmed, label=name)
+        _, filtered = timeseries.growth_factor(return_filtered=True)
+        plt.semilogy(timeseries.dates, filtered, label=name)
+        plt.semilogy(timeseries.dates, timeseries.confirmed,
+                     color='gray', alpha=0.5)
+        plt.annotate(timeseries.confirmed[-1],
+                     (timeseries.dates[-1], timeseries.confirmed[-1]))
 
+    def plot_growth_factor(timeseries: TimeSeries, name: str):
+        rates = timeseries.growth_factor()
+        plt.plot(timeseries.dates, rates[:, 0], label=name)
+        plt.fill_between(timeseries.dates, rates[:, 1], rates[:, 2], alpha=0.4)
+
+    def plot_daily_cases(timeseries: TimeSeries, name: str):
+        new_cases = timeseries.daily_new_cases()
+        plt.bar(timeseries.dates, new_cases, label=name)
+
+    # Confirmed Cases
     if len(countries) == 0:
         click.echo('all reports')
         plot_confirmed(dataset.reports, 'all')
@@ -111,6 +139,53 @@ def plot(ctx: click.Context, countries: Tuple[str]):
     plt.ylabel('Confirmed')
     plt.legend()
     plt.xticks(rotation=30)
+
+    # Growth Factors
+    plt.figure()
+    if len(countries) == 0:
+        timeseries = TimeSeries(dataset.reports)
+        xmin = timeseries.dates[0]
+        xmax = timeseries.dates[-1]
+        plot_growth_factor(timeseries, 'all')
+    else:
+        xmin = None  # type: ignore
+        xmax = None  # type: ignore
+        for country in countries:
+            timeseries = TimeSeries(dataset.for_country(country))
+            if xmin is None:
+                xmin = timeseries.dates[0]
+                xmax = timeseries.dates[-1]
+            else:
+                xmin = min(xmin, timeseries.dates[0])
+                xmax = max(xmax, timeseries.dates[-1])
+
+            plot_growth_factor(timeseries, country)
+
+    plt.title('COVID-19 Growth Factor')
+    plt.xlabel('Date')
+    plt.ylabel('Growth Factor')
+    plt.hlines(y=1, xmin=xmin, xmax=xmax, linestyles='dashed', alpha=0.8)
+    plt.legend()
+    plt.xticks(rotation=30)
+
+    # Daily New Cases
+    plt.figure()
+    if len(countries) == 0:
+        timeseries = TimeSeries(dataset.reports)
+        plot_daily_cases(timeseries, 'all')
+    else:
+        xmin = None  # type: ignore
+        xmax = None  # type: ignore
+        for country in countries:
+            timeseries = TimeSeries(dataset.for_country(country))
+            plot_daily_cases(timeseries, country)
+
+    plt.title('COVID-19 Daily New Cases')
+    plt.xlabel('Date')
+    plt.ylabel('New Cases')
+    plt.legend()
+    plt.xticks(rotation=30)
+
     plt.show()
 
 
@@ -119,7 +194,23 @@ def plot(ctx: click.Context, countries: Tuple[str]):
 @click.argument('second', metavar='COUNTRY', nargs=1)
 @click.pass_context
 def compare(ctx: click.Context, first: str, second: str):
-    '''Compare the 'confirmed' curves of two countries.'''
+    '''Compare the 'confirmed' curves of two countries.
+
+    Assuming that the epidemiological curves are logistic (i.e. sigmoidal),
+    then the two curves are log-linear during the exponential growth phase.
+    This means that the normalized cross-correlation between the curves
+    provides two pieces of information:
+
+     - Whether or not one curve is leading or lagging the other, as given by
+       the point in time where the cross-correlation is at a maximum.
+
+     - The similarity between the two curves, where a value closer to '1' means
+       that the two curves are more similar.
+
+    The lower the maximum cross-correlation score, the less similar the two
+    curves are, which can indicate a divergence.
+    '''
+    preamble(ctx)
     dataset = Dataset(ctx.obj['DATASET_PATH'])
     click.secho('Comparing: ', bold=True, nl=False)
     click.echo(f"{first} {second}")
