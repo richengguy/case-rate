@@ -137,11 +137,14 @@ class TimeSeries(object):
         '''Convert the time series into a numpy array.'''
         return np.array(self.as_list(), dtype=float)
 
-    def daily_new_cases(self) -> np.ndarray:
+    def daily_new_cases(self, smoothed: bool = False) -> np.ndarray:
         '''Returns the number of daily confirmed cases.
 
-        This is calculated directly the data without any least-squares local
-        filtering.
+        Parameters
+        ----------
+        smoothed : bool
+            if ``True`` then it will return filtered results rather than the
+            differences computed directly from the data
 
         Returns
         -------
@@ -149,8 +152,11 @@ class TimeSeries(object):
             an Nx1 array containing the number of new daily confirmed cases
         '''
         confirmed = np.array(self.confirmed)
-        delta = np.diff(confirmed)
-        return np.pad(delta, (1, 0))
+        if smoothed:
+            delta = _local_leastsq(confirmed, np.array(self.days, dtype=float)).slope  # noqa: E501
+        else:
+            delta = np.pad(np.diff(confirmed), (1, 0))
+        return delta
 
     def growth_factor(self, confidence: float = 0.95,
                       return_filtered: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:  # noqa: E501

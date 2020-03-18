@@ -1,5 +1,5 @@
 import pathlib
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import click
 import matplotlib.gridspec as gridspec
@@ -98,15 +98,11 @@ def info(ctx: click.Context, country: Optional[str], details: bool):
 @click.option('-c', '--country', 'countries', nargs=1, multiple=True,
               help='Plot results for a single country.')
 @click.pass_context
-def plot(ctx: click.Context, countries: Tuple[str]):
+def plot(ctx: click.Context, countries):
     '''Generates plots from the downloaded COVID-19 data.
 
     This will generate plots for the confirmed cases along a semi-log y-axis.
     '''
-    preamble(ctx)
-    dataset = Dataset(ctx.obj['DATASET_PATH'])
-    click.secho('Plotting: ', bold=True, nl=False)
-
     def plot_confirmed(reports: ReportSet, name: str):
         timeseries = TimeSeries(reports)
         _, filtered = timeseries.growth_factor(return_filtered=True)
@@ -123,7 +119,20 @@ def plot(ctx: click.Context, countries: Tuple[str]):
 
     def plot_daily_cases(timeseries: TimeSeries, name: str):
         new_cases = timeseries.daily_new_cases()
-        plt.bar(timeseries.dates, new_cases, label=name)
+        smoothed = timeseries.daily_new_cases(True)
+        plt.bar(timeseries.dates, new_cases, alpha=0.4)
+        plt.plot(timeseries.dates, smoothed, label=name)
+
+    preamble(ctx)
+    dataset = Dataset(ctx.obj['DATASET_PATH'])
+    click.secho('Plotting: ', bold=True, nl=False)
+
+    # Sort countries from highest to lowest in count.
+    countries = sorted(
+        countries,
+        key=lambda country: dataset.for_country(country).reports[-1].total_confirmed  # noqa: E501
+    )
+    countries.reverse()
 
     # Confirmed Cases
     if len(countries) == 0:
