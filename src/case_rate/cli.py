@@ -1,5 +1,5 @@
 import pathlib
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import click
 import matplotlib.gridspec as gridspec
