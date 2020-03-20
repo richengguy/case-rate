@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from case_rate import Dataset, ReportSet, TimeSeries
+from case_rate.plotting import Plotter
 
 
 def preamble(ctx: click.Context):
@@ -52,6 +53,19 @@ def download(ctx: click.Context, repo):
         Dataset.update(ctx.obj['DATASET_PATH'])
     else:
         Dataset.create(repo, ctx.obj['DATASET_PATH'])
+
+
+@main.command()
+@click.pass_context
+def report(ctx: click.Context):
+    '''Generate a daily COVID-19 report.'''
+    preamble(ctx)
+    dataset = Dataset(ctx.obj['DATASET_PATH'])
+    plotter = Plotter({
+        'Canada': TimeSeries(dataset.for_country('Canada')),
+        'US': TimeSeries(dataset.for_country('US'))
+    })
+    plotter.plot_confirmed()
 
 
 @main.command()

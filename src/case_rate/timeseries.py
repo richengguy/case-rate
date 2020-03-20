@@ -140,7 +140,7 @@ class TimeSeries(object):
 
     @property
     def smoothed(self) -> np.ndarray:
-        return self._processed.smooth
+        return np.squeeze(self._processed.smooth)
 
     def as_list(self) -> List[Tuple[int, int, int]]:
         '''Convert the time series into a list.'''
