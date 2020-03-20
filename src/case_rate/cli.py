@@ -173,6 +173,7 @@ def plot(ctx: click.Context, countries):
     plt.title('COVID-19 Growth Factor')
     plt.xlabel('Date')
     plt.ylabel('Growth Factor')
+    plt.ylim((0, 4))
     plt.hlines(y=1, xmin=xmin, xmax=xmax, linestyles='dashed', alpha=0.8)
     plt.legend()
     plt.xticks(rotation=30)
