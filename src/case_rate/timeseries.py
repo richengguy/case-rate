@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 import numpy as np
 import scipy.signal
@@ -169,7 +169,7 @@ class TimeSeries(object):
         else:
             confirmed = np.array(self.confirmed)
             delta = np.pad(np.diff(confirmed), (1, 0))
-        return delta
+        return np.squeeze(delta)
 
     def growth_factor(self) -> np.ndarray:
         '''Computes the time series growth factor.

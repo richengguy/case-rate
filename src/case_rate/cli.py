@@ -65,7 +65,7 @@ def report(ctx: click.Context):
         'Canada': TimeSeries(dataset.for_country('Canada')),
         'US': TimeSeries(dataset.for_country('US'))
     })
-    plotter.plot_confirmed()
+    plotter.plot_new_cases()
 
 
 @main.command()
