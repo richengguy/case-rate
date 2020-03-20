@@ -261,6 +261,7 @@ class Dataset(object):
         path : pathlib.Path
             path to where the dataset CSV files are stored
         '''
+        path = pathlib.Path(path)
         if not path.exists():
             raise ValueError(f'{path} does not exist.')
         self._reports = ReportSet(path=path / Dataset.DAILY_REPORTS)

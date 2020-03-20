@@ -115,12 +115,17 @@ class TimeSeries(object):
     recovered: list of ``int``
         number of confirmed COVID-19 recoveries
     '''
-    def __init__(self, reports: ReportSet):
+    def __init__(self, reports: ReportSet, confidence: float = 0.95,
+                 window: int = 7):
         '''
         Parameters
         ----------
-        reports: ReportSet
+        reports : ReportSet
             the report set to represent as a time series
+        confidence : float
+            requested confidence interval when calculating slopes
+        window : int
+            filtering window used for slope estimation
         '''
         daily: Report
         self.dates = [datetime.date(year, month, day) for year, month, day in reports.dates]  # noqa: E501
@@ -128,6 +133,14 @@ class TimeSeries(object):
         self.confirmed = [daily.total_confirmed for daily in reports.reports]
         self.deaths = [daily.total_deaths for daily in reports.reports]
         self.recovered = [daily.total_recovered for daily in reports.reports]
+
+        self._processed = _local_leastsq(np.array(self.confirmed),
+                                         np.array(self.days, dtype=float),
+                                         window, confidence)
+
+    @property
+    def smoothed(self) -> np.ndarray:
+        return self._processed.smooth
 
     def as_list(self) -> List[Tuple[int, int, int]]:
         '''Convert the time series into a list.'''
@@ -151,15 +164,14 @@ class TimeSeries(object):
         np.ndarray
             an Nx1 array containing the number of new daily confirmed cases
         '''
-        confirmed = np.array(self.confirmed)
         if smoothed:
-            delta = _local_leastsq(confirmed, np.array(self.days, dtype=float)).slope  # noqa: E501
+            delta = self._processed.slope
         else:
+            confirmed = np.array(self.confirmed)
             delta = np.pad(np.diff(confirmed), (1, 0))
         return delta
 
-    def growth_factor(self, confidence: float = 0.95,
-                      return_filtered: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:  # noqa: E501
+    def growth_factor(self) -> np.ndarray:
         '''Computes the time series growth factor.
 
         The growth value is defined as the ratio between successive samples of
@@ -173,14 +185,6 @@ class TimeSeries(object):
         compute the time series first derivative.  The forward difference is
         then taken in the log-domain to compute :math:`G[i]`.
 
-        Parameters
-        ----------
-        confidence : float
-            confidence interval on growth factor estimate; default is 0.95, or
-            95%
-        return_filtered : bool
-            if set to ``True`` then return the filtered curve
-
         Returns
         -------
         growth : np.ndarray
@@ -189,10 +193,7 @@ class TimeSeries(object):
         filtered : np.ndarray
             the filtered time series, produced when estimating the derivatives
         '''
-        confirmed = np.array(self.confirmed)
-        time = np.array(self.days, dtype=float)
-        filtered = _local_leastsq(confirmed, time, alpha=confidence)
-        filtered_derivatives = filtered.package()
+        filtered_derivatives = self._processed.package()
 
         # Handle derivatives close to zero and set those values to 'nan' so
         # that they're ignored when plotting.
@@ -215,10 +216,7 @@ class TimeSeries(object):
             delta = log_derivatives[i, :] - log_derivatives[i-1, :]
             gf[i, :] = np.power(10, delta)
 
-        if return_filtered:
-            return gf, filtered.smooth
-        else:
-            return gf
+        return gf
 
     @staticmethod
     def crosscorrelate(s1: 'TimeSeries', s2: 'TimeSeries') -> np.ndarray:

@@ -105,7 +105,7 @@ def plot(ctx: click.Context, countries):
     '''
     def plot_confirmed(reports: ReportSet, name: str):
         timeseries = TimeSeries(reports)
-        _, filtered = timeseries.growth_factor(return_filtered=True)
+        filtered = timeseries.smoothed
         plt.semilogy(timeseries.dates, filtered, label=name)
         plt.semilogy(timeseries.dates, timeseries.confirmed,
                      color='gray', alpha=0.5)
