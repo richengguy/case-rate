@@ -49,7 +49,7 @@ confirmed cases looks like this, where doubling takes two days:
 However, if it takes a test between one to three days to get a result, then what
 you observe will be:
 
-||||||||||
+|||||||||||
 |-----------|---|---|---|---|---|---|---|---|---|
 | **Day**   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
 | **Count** | 0 | 1 | 1 | 1 | 1 | 4 | 4 | 6 | 8 |
