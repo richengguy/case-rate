@@ -66,7 +66,7 @@ def report(ctx: click.Context):
     report = HTMLReport()
     html = report.generate_report({
         'Canada': TimeSeries(dataset.for_country('Canada')),
-        'US': TimeSeries(dataset.for_country('US'))
+        # 'US': TimeSeries(dataset.for_country('US'))
     })
 
     with open('report.html', 'w') as f:

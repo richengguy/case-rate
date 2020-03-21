@@ -45,6 +45,7 @@ class HTMLReport(object):
 
         template = self._env.get_template('report.html')
         return template.render(date=datetime.date.today(),
+                               regions=list(data.keys()),
                                bokeh_resources=resources,
                                bokeh_scripts=script,
                                bokeh_plots=div)

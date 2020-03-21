@@ -11,7 +11,15 @@
     <body>
         <div class="container">
             <h1>COVID-19 Report</h1>
-            <small class="text-muted">Generated: {{date}}</small>
+            <ul class="list-unstyled">
+                <li>Date Generated: {{date}}</li>
+                {% if regions | length == 1 %}
+                <li>Region: {{ regions[0] }}</li>
+                {% else %}
+                <li>Regions: {{ regions | join(', ') }}</li>
+                {% endif %}
+                <li>Source: </li>
+            </ul>
 
             {{ bokeh_plots.total_confirmed | safe }}
             {{ bokeh_plots.new_daily_cases | safe }}
