@@ -68,6 +68,9 @@ alt="3Blue1Brown Exponential Growth" width="240" height="180" border="10" /></a>
 " target="_blank"><img src="http://img.youtube.com/vi/fgBla7RepXU/0.jpg"
 alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 
+They provide a good overview of the underlying mathematics behind an outbreak
+and exponential growth in general.
+
 ## Using the tool
 
 The best way to set up the development environment is with
