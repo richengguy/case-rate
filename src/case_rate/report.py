@@ -43,7 +43,7 @@ class HTMLReport(object):
             plot.sizing_mode = 'stretch_width'
             plot.legend.location = 'top_left'
 
-        resources = bokeh.resources.INLINE.render()
+        resources = bokeh.resources.CDN.render()
         script, div = bokeh.embed.components(plots)
 
         template = self._env.get_template('report.html')

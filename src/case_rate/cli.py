@@ -1,5 +1,5 @@
 import pathlib
-from typing import Optional
+from typing import Optional, Tuple
 
 import click
 import matplotlib.gridspec as gridspec
@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from case_rate import Dataset, ReportSet, TimeSeries
+from case_rate.report import HTMLReport
 
 
 def preamble(ctx: click.Context):
@@ -55,21 +56,33 @@ def download(ctx: click.Context, repo):
 
 
 @main.command()
+@click.option('-c', '--country', 'countries', nargs=1, multiple=True,
+              help='Specify countries/regions to put into the report.')
+@click.option('-o', '--output', help='Location of the output file.',
+              default='report.html',
+              type=click.Path(dir_okay=False, file_okay=True))
 @click.pass_context
-def report(ctx: click.Context):
+def report(ctx: click.Context, countries: Tuple[str], output: str):
     '''Generate a daily COVID-19 report.'''
     preamble(ctx)
     dataset = Dataset(ctx.obj['DATASET_PATH'])
 
-    from case_rate.report import HTMLReport
-    report = HTMLReport()
-    html = report.generate_report({
-        'Canada': TimeSeries(dataset.for_country('Canada')),
-        # 'US': TimeSeries(dataset.for_country('US'))
-    }, source=dataset.github_link)
+    if len(countries) == 0:
+        data = {'World': TimeSeries(dataset.reports)}
+    else:
+        data = {
+            country: TimeSeries(dataset.for_country(country))
+            for country in countries
+        }
 
-    with open('report.html', 'w') as f:
+    click.echo(click.style('Output: ', bold=True) + output)
+    report = HTMLReport()
+    html = report.generate_report(data, dataset.github_link)
+
+    with open(output, 'w') as f:
         f.write(html)
+
+    click.echo('Generated report...' + click.style('\u2713', fg='green'))
 
 
 @main.command()
@@ -80,7 +93,7 @@ def report(ctx: click.Context):
 def info(ctx: click.Context, country: Optional[str], details: bool):
     '''Get information about the contents of the COVID-19 data set.
 
-    This will prodcue some general informattion about the data set or, if
+    This will produce some general informattion about the data set or, if
     specified, the particular country.
     '''
     preamble(ctx)
