@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict
+from typing import Dict, Optional
 
 import bokeh.resources
 import bokeh.embed
@@ -16,13 +16,16 @@ class HTMLReport(object):
             autoescape=jinja2.select_autoescape(['html'])
         )
 
-    def generate_report(self, data: Dict[str, TimeSeries]) -> str:
+    def generate_report(self, data: Dict[str, TimeSeries],
+                        source: Optional[str] = None) -> str:
         '''Generate an HTML report for the provided time series.
 
         Parameters
         ----------
         data : Dict[str, TimeSeries]
             a dictionary containing the time series data for each region
+        source : str, optional
+            an optional string that contains the URL to the source repo
 
         Returns
         -------
@@ -45,6 +48,7 @@ class HTMLReport(object):
 
         template = self._env.get_template('report.html')
         return template.render(date=datetime.date.today(),
+                               source=source,
                                regions=list(data.keys()),
                                bokeh_resources=resources,
                                bokeh_scripts=script,

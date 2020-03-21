@@ -18,7 +18,9 @@
                 {% else %}
                 <li>Regions: {{ regions | join(', ') }}</li>
                 {% endif %}
-                <li>Source: </li>
+                {% if source is not none %}
+                <li>Source: <a href="{{ source }}">JHU CSSE GitHub Repo</a></li>
+                {% endif %}
             </ul>
 
             {{ bokeh_plots.total_confirmed | safe }}

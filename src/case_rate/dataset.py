@@ -4,11 +4,13 @@ import functools
 import pathlib
 import subprocess
 from typing import Callable, List, Optional, Tuple
+from urllib.parse import urlparse, urlunsplit
 
 import click
 
 
-def _git(*args, cwd: pathlib.Path = None):
+def _git(*args, cwd: pathlib.Path = None,
+         output_stdout: bool = False) -> Optional[str]:
     '''Run a git command using subprocess.
 
     This will just call the system's own 'git'.  For example, calling this with
@@ -17,13 +19,52 @@ def _git(*args, cwd: pathlib.Path = None):
 
     Parameters
     ----------
-    cwd: pathlib.Path
+    cwd : pathlib.Path
         the current working directory when running the 'git' command
+    output_stdout : bool
+        if ``True`` then return stdout instead of showing it
     '''
     cmd = ['git'] + list(args)
     output = subprocess.run(cmd, check=True, capture_output=True, cwd=cwd)
-    click.echo(output.stdout)
-    click.echo(output.stderr)
+    if output_stdout:
+        return output.stdout
+    else:
+        click.echo(output.stdout)
+        click.echo(output.stderr)
+
+
+def _get_github_link(path: pathlib.Path = None) -> str:
+    '''Get the link to the commit on GitHub.
+
+    This is a link that can be visited by a browser and takes the form of
+    ``https://github.com/<organization>/<repo>/tree/<commit-id>``.
+
+    Parameters
+    ----------
+    path : pathlib.Path, optional
+        path to the COVID-19 repo, by default None
+
+    Returns
+    -------
+    str
+        the URL to the commit on GitHub
+    '''
+    remote_url = urlparse(_git('config', '--get', 'remote.origin.url',
+                               cwd=path, output_stdout=True))
+    commit_id = _git('rev-parse', '--verify', 'HEAD',
+                     cwd=path, output_stdout=True).decode()
+
+    if b'github.com' not in remote_url.netloc:
+        raise ValueError('Cannot get link for non-GitHub repos.')
+
+    # Construct the GitHub path, which includes stripping out the '.git' that's
+    # sometimes at the end of a git+http URL.
+    github_path = pathlib.PurePosixPath(remote_url.path.decode())
+    github_path = github_path.parent / github_path.stem / 'tree' / commit_id
+    github_url = urlunsplit([remote_url.scheme, remote_url.netloc,
+                             github_path.as_posix().encode(), '', ''])
+
+    return github_url.decode().rstrip()
 
 
 def _parse_name(csvfile: pathlib.Path) -> Tuple[int, int, int]:
@@ -248,8 +289,10 @@ class Dataset(object):
 
     Attributes
     ----------
-    reports: ReportsCollection
+    reports : ReportsCollection
         the collection of available daily reports
+    github_link : str
+        the browser-friendly link to the URL source
     '''
     DATA = pathlib.PurePath('csse_covid_19_data')
     DAILY_REPORTS = DATA / pathlib.PurePath('csse_covid_19_daily_reports')
@@ -265,6 +308,11 @@ class Dataset(object):
         if not path.exists():
             raise ValueError(f'{path} does not exist.')
         self._reports = ReportSet(path=path / Dataset.DAILY_REPORTS)
+        self._link = _get_github_link(path)
+
+    @property
+    def github_link(self) -> str:
+        return self._link
 
     @property
     def reports(self) -> ReportSet:

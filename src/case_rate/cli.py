@@ -67,16 +67,10 @@ def report(ctx: click.Context):
     html = report.generate_report({
         'Canada': TimeSeries(dataset.for_country('Canada')),
         # 'US': TimeSeries(dataset.for_country('US'))
-    })
+    }, source=dataset.github_link)
 
     with open('report.html', 'w') as f:
         f.write(html)
-
-    # plotter = Plotter({
-    #     'Canada': TimeSeries(dataset.for_country('Canada')),
-    #     'US': TimeSeries(dataset.for_country('US'))
-    # })
-    # plotter.plot_new_cases()
 
 
 @main.command()
