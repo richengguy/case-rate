@@ -40,18 +40,16 @@ For example, assume that a COVID-19 test takes between one to three days to get
 a result (postive *or* negative).  Let's also assume that the *true* number of
 confirmed cases looks like this, where doubling takes two days:
 
-||||||||||
+|   Day     | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 |-----------|---|---|---|---|---|---|---|---|
-| **Day**   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 | **Count** | 1 | 1 | 2 | 2 | 4 | 4 | 8 | 8 |
 | **New**   | 1 | 0 | 1 | 0 | 2 | 0 | 4 | 0 |
 
 However, if it takes a test between one to three days to get a result, then what
 you observe will be:
 
-|||||||||||
+|   Day     | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
 |-----------|---|---|---|---|---|---|---|---|---|
-| **Day**   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
 | **Count** | 0 | 1 | 1 | 1 | 1 | 4 | 4 | 6 | 8 |
 | **New**   | 0 | 1 | 0 | 0 | 0 | 4 | 0 | 2 | 2 |
 
