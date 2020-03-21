@@ -58,6 +58,19 @@ rate hasn't changed.  Basically, you need to look at the number of cases over
 the *expected* lag in order to get a true sense of where things are.  Otherwise,
 you have an extended period where things look stable but actually aren't.
 
+A lot of this was inspired by these two YouTube videos:
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=Kas0tIxDvrg
+" target="_blank"><img src="http://img.youtube.com/vi/Kas0tIxDvrg/0.jpg"
+alt="3Blue1Brown Exponential Growth" width="240" height="180" border="10" /></a>
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=fgBla7RepXU
+" target="_blank"><img src="http://img.youtube.com/vi/fgBla7RepXU/0.jpg"
+alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
+
+They provide a good overview of the underlying mathematics behind an outbreak
+and exponential growth in general.
+
 ## Using the tool
 
 The best way to set up the development environment is with
