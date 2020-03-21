@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from case_rate import Dataset, ReportSet, TimeSeries
-from case_rate.plotting import Plotter
 
 
 def preamble(ctx: click.Context):
