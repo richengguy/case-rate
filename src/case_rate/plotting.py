@@ -4,17 +4,21 @@ from typing import Dict, List, Tuple
 import bokeh.models
 import bokeh.palettes
 import bokeh.plotting
-import bokeh.resources
-import bokeh.embed
 import numpy as np
 
-from case_rate import TimeSeries
+from case_rate.timeseries import TimeSeries
 
 
 class Plotter(object):
     '''High-level object for plotting time-series data.'''
-    def __init__(self, timeseries: Dict[str, TimeSeries]):
-        self._num_series = len(timeseries)
+    def __init__(self, data: Dict[str, TimeSeries]):
+        '''
+        Parameters
+        ----------
+        data : Dict[str, TimeSeries]
+            dictionary containing the time series to plot
+        '''
+        self._num_series = len(data)
 
         # Select the colour palettes to use.
         num_palettes = min(max(self._num_series, 3), 20)
@@ -29,26 +33,26 @@ class Plotter(object):
         self._dates = {
             name: [
                 datetime.datetime(d.year, d.month, d.day) for d in ts.dates
-            ] for name, ts in timeseries.items()
+            ] for name, ts in data.items()
         }
 
         def to_datetime(date: datetime.date) -> datetime.datetime:
             return datetime.datetime(date.year, date.month, date.day)
 
         # Rank regions based on counts to simplify some of the plotting.
-        regions = sorted(timeseries.keys(),
-                         key=lambda region: -timeseries[region].confirmed[-1])
+        regions = sorted(data.keys(),
+                         key=lambda region: -data[region].confirmed[-1])
         dates = list(
-            [to_datetime(date) for date in timeseries[region].dates]
+            [to_datetime(date) for date in data[region].dates]
             for region in regions
         )
-        timeseries = list(timeseries[region] for region in regions)
+        data = list(data[region] for region in regions)
         colours = list(palettes[i % self._num_series] for i in range(self._num_series))  # noqa: E501
 
         self._data: List[Tuple[str, str, datetime.datetime, TimeSeries]]
-        self._data = list(zip(colours, regions, dates, timeseries))
+        self._data = list(zip(colours, regions, dates, data))
 
-    def plot_confirmed(self):
+    def plot_confirmed(self) -> bokeh.plotting.Figure:
         '''Plot all confirmed cases.'''
         p = bokeh.plotting.figure(title='Confirmed Cases',
                                   x_axis_label='Date',
@@ -66,9 +70,9 @@ class Plotter(object):
                                        text=f'{timeseries.confirmed[-1]}')
             p.add_layout(count)
 
-        bokeh.plotting.show(p)
+        return p
 
-    def plot_new_cases(self):
+    def plot_new_cases(self) -> bokeh.plotting.Figure:
         '''Plot daily new cases over time.'''
         p = bokeh.plotting.figure(title='New Daily Cases',
                                   x_axis_label='Date',
@@ -104,9 +108,9 @@ class Plotter(object):
                                             fill_alpha=0.2)
             p.add_layout(uncertainty)
 
-        bokeh.plotting.show(p)
+        return p
 
-    def plot_growth_factor(self):
+    def plot_growth_factor(self) -> bokeh.plotting.Figure:
         '''Plot the growth factor over time.'''
         p = bokeh.plotting.figure(title='Growth Factor',
                                   x_axis_label='Date',
@@ -139,4 +143,4 @@ class Plotter(object):
                                      line_dash='dashed', line_color='gray')
         p.add_layout(boundary)
 
-        bokeh.plotting.show(p)
+        return p

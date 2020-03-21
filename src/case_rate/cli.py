@@ -61,11 +61,22 @@ def report(ctx: click.Context):
     '''Generate a daily COVID-19 report.'''
     preamble(ctx)
     dataset = Dataset(ctx.obj['DATASET_PATH'])
-    plotter = Plotter({
+
+    from case_rate.report import HTMLReport
+    report = HTMLReport()
+    html = report.generate_report({
         'Canada': TimeSeries(dataset.for_country('Canada')),
         'US': TimeSeries(dataset.for_country('US'))
     })
-    plotter.plot_new_cases()
+
+    with open('report.html', 'w') as f:
+        f.write(html)
+
+    # plotter = Plotter({
+    #     'Canada': TimeSeries(dataset.for_country('Canada')),
+    #     'US': TimeSeries(dataset.for_country('US'))
+    # })
+    # plotter.plot_new_cases()
 
 
 @main.command()
