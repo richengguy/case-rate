@@ -131,9 +131,12 @@ class Plotter(object):
 
             uncertainty = bokeh.models.Band(base='date', upper='upper',
                                             lower='lower', source=source,
-                                            level='underlay', fill_alpha=0.4,
-                                            fill_color=colour,
-                                            name=f'uncertainty')
+                                            level='underlay',
+                                            line_color='grey',
+                                            line_dash='dashed',
+                                            line_alpha=1.0,
+                                            fill_alpha=0.4,
+                                            fill_color=colour)
 
             p.line(x='date', y='growth_factor', source=source,
                    legend_label=region, line_color=colour, line_width=2)
