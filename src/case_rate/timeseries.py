@@ -134,9 +134,11 @@ class TimeSeries(object):
         self.deaths = [daily.total_deaths for daily in reports.reports]
         self.recovered = [daily.total_recovered for daily in reports.reports]
 
+        self._window = window
+        self._confidence = confidence
         self._processed = _local_leastsq(np.array(self.confirmed),
                                          np.array(self.days, dtype=float),
-                                         window, confidence)
+                                         self._window, self._confidence)
 
     @property
     def smoothed(self) -> np.ndarray:
@@ -170,6 +172,19 @@ class TimeSeries(object):
             confirmed = np.array(self.confirmed)
             delta = np.pad(np.diff(confirmed), (1, 0))
         return np.squeeze(delta)
+
+    def log_slope(self) -> np.ndarray:
+        '''Returns the estimated log-slope of the number of daily cases.
+
+        Returns
+        -------
+        np.ndarray
+            a Nx3 array contianing the slope and the confidence interval
+        '''
+        lsq = _local_leastsq(np.log10(self.confirmed),
+                             np.array(self.days, dtype=float),
+                             self._window, self._confidence)
+        return lsq.package()
 
     def growth_factor(self) -> np.ndarray:
         '''Computes the time series growth factor.
