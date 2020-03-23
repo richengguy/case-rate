@@ -66,10 +66,14 @@ alt="3Blue1Brown Exponential Growth" width="240" height="180" border="10" /></a>
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=fgBla7RepXU
 " target="_blank"><img src="http://img.youtube.com/vi/fgBla7RepXU/0.jpg"
-alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
+alt="It's Okay to be Smart" width="240" height="180" border="10" /></a>
 
 They provide a good overview of the underlying mathematics behind an outbreak
-and exponential growth in general.
+and exponential growth in general.  And for some more general medical context:
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=ofSLpDQx1bA
+" target="_blank"><img src="http://img.youtube.com/vi/ofSLpDQx1bA/0.jpg"
+alt="Doctor Asks: Are We Doing The Right Thing?" width="240" height="180" border="10" /></a>
 
 ## Using the tool
 
