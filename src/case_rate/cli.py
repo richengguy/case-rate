@@ -293,6 +293,7 @@ def compare(ctx: click.Context, first: str, second: str):
     ax.set_ylabel('Cases')
     ax.set_title(f'{first}/{second} Confirmed (Log-scale)')
     plt.setp(ax.get_xticklabels(), rotation=30)
+    plt.legend()
 
     confA = np.array(countryA.confirmed)
     confB = np.array(countryB.confirmed)
@@ -305,7 +306,7 @@ def compare(ctx: click.Context, first: str, second: str):
         dates = countryB.dates
 
     plt.figure()
-    plt.plot(dates, np.exp(np.log(confA) - np.log(confB)))
+    plt.plot(dates, np.power(10, np.log10(confA) - np.log10(confB)))
     plt.title(f'Relative Cases Between {first} and {second}.')
     plt.xticks(rotation=30)
     plt.xlabel('Date')
