@@ -128,14 +128,44 @@ class Plotter(object):
                 'upper': np.squeeze(rates[:, 1]),
                 'lower': np.squeeze(rates[:, 2])
             })
+            p.line(x='date', y='growth_factor', source=source,
+                   legend_label=region, line_color=colour, line_width=2)
+
+        boundary = bokeh.models.Span(location=1, dimension='width',
+                                     line_dash='dashed', line_color='gray')
+        p.add_layout(boundary)
+
+        return p
+
+    def plot_log_slope(self) -> bokeh.plotting.Figure:
+        '''Plot the daily multiplier (i.e. log-slope).'''
+        p = bokeh.plotting.figure(title='Day-over-Day Multiplier',
+                                  x_axis_label='Date',
+                                  x_axis_type='datetime',
+                                  y_axis_label='Multiplier',
+                                  y_range=(1, 2))
+
+        timeseries: TimeSeries
+        for colour, region, dates, timeseries in self._data:
+            rates = np.power(10, timeseries.log_slope())
+
+            source = bokeh.models.ColumnDataSource(data={
+                'date': dates,
+                'log_slope': np.squeeze(rates[:, 0]),
+                'upper': np.squeeze(rates[:, 1]),
+                'lower': np.squeeze(rates[:, 2])
+            })
 
             uncertainty = bokeh.models.Band(base='date', upper='upper',
                                             lower='lower', source=source,
-                                            level='underlay', fill_alpha=0.4,
-                                            fill_color=colour,
-                                            name=f'uncertainty')
+                                            level='underlay',
+                                            line_color='grey',
+                                            line_dash='dashed',
+                                            line_alpha=1.0,
+                                            fill_alpha=0.4,
+                                            fill_color=colour)
 
-            p.line(x='date', y='growth_factor', source=source,
+            p.line(x='date', y='log_slope', source=source,
                    legend_label=region, line_color=colour, line_width=2)
             p.add_layout(uncertainty)
 

@@ -2,7 +2,6 @@ import pathlib
 from typing import Optional, Tuple
 
 import click
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -148,6 +147,12 @@ def plot(ctx: click.Context, countries):
         plt.plot(timeseries.dates, rates[:, 0], label=name)
         plt.fill_between(timeseries.dates, rates[:, 1], rates[:, 2], alpha=0.4)
 
+    def plot_log_slope(timeseries: TimeSeries, name: str):
+        rates = timeseries.log_slope()
+        rates = np.power(10, rates)
+        plt.plot(timeseries.dates, rates[:, 0], label=name)
+        plt.fill_between(timeseries.dates, rates[:, 1], rates[:, 2], alpha=0.4)
+
     def plot_daily_cases(timeseries: TimeSeries, name: str):
         new_cases = timeseries.daily_new_cases()
         smoothed = timeseries.daily_new_cases(True)
@@ -227,69 +232,24 @@ def plot(ctx: click.Context, countries):
     plt.legend()
     plt.xticks(rotation=30)
 
-    plt.show()
+    # Log-slope estimate
+    plt.figure()
+    if len(countries) == 0:
+        timeseries = TimeSeries(dataset.reports)
+        plot_log_slope(timeseries, 'all')
+    else:
+        xmin = None  # type: ignore
+        xmax = None  # type: ignore
+        for country in countries:
+            timeseries = TimeSeries(dataset.for_country(country))
+            plot_log_slope(timeseries, country)
 
-
-@main.command()
-@click.argument('first', metavar='COUNTRY', nargs=1)
-@click.argument('second', metavar='COUNTRY', nargs=1)
-@click.pass_context
-def compare(ctx: click.Context, first: str, second: str):
-    '''Compare the 'confirmed' curves of two countries.
-
-    Assuming that the epidemiological curves are logistic (i.e. sigmoidal),
-    then the two curves are log-linear during the exponential growth phase.
-    This means that the normalized cross-correlation between the curves
-    provides two pieces of information:
-
-     - Whether or not one curve is leading or lagging the other, as given by
-       the point in time where the cross-correlation is at a maximum.
-
-     - The similarity between the two curves, where a value closer to '1' means
-       that the two curves are more similar.
-
-    The lower the maximum cross-correlation score, the less similar the two
-    curves are, which can indicate a divergence.
-    '''
-    preamble(ctx)
-    dataset = Dataset(ctx.obj['DATASET_PATH'])
-    click.secho('Comparing: ', bold=True, nl=False)
-    click.echo(f"{first} {second}")
-
-    countryA = TimeSeries(dataset.for_country(first))
-    countryB = TimeSeries(dataset.for_country(second))
-
-    # Compute the cross-correlation between two countries.
-    xcorr = TimeSeries.crosscorrelate(countryA, countryB)
-    ind = np.argmax(xcorr[:, 1])
-    click.secho('Maximum Lag: ', bold=True, nl=False)
-    click.echo(f'{xcorr[ind, 0]} days')
-
-    fig = plt.figure()
-    gs = gridspec.GridSpec(2, 2)
-
-    ax = fig.add_subplot(gs[0, 0])
-    ax.plot(countryA.dates, countryA.confirmed, label=first)
-    ax.plot(countryB.dates, countryB.confirmed, label=second)
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Cases')
-    ax.set_title(f'{first}/{second} Confirmed')
-    plt.setp(ax.get_xticklabels(), rotation=30)
-
-    ax = fig.add_subplot(gs[0, 1])
-    ax.semilogy(countryA.dates, countryA.confirmed, label=first)
-    ax.semilogy(countryB.dates, countryB.confirmed, label=second)
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Cases')
-    ax.set_title(f'{first}/{second} Confirmed (Log-scale)')
-    plt.setp(ax.get_xticklabels(), rotation=30)
-
-    ax = fig.add_subplot(gs[1, :])
-    ax.plot(xcorr[:, 0], xcorr[:, 1])
-    ax.plot(xcorr[ind, 0], xcorr[ind, 1], 'x')
-    ax.vlines(x=xcorr[ind, 0], ymin=0, ymax=xcorr[ind, 1])
-    ax.set_xlabel(f'Lag (Days); max @ {xcorr[ind, 0]}')
-    ax.set_ylabel('Correlation Coefficient')
+    plt.title('COVID-19 Daily Multiplier')
+    plt.xlabel('Date')
+    plt.ylabel('Multiplier')
+    plt.ylim(1, plt.ylim()[1])
+    plt.legend()
+    plt.xticks(rotation=30)
 
     plt.show()
 

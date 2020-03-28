@@ -36,7 +36,8 @@ class HTMLReport(object):
         plots = {
             'total_confirmed': plotter.plot_confirmed(),
             'new_daily_cases': plotter.plot_new_cases(),
-            'growth_factor': plotter.plot_growth_factor()
+            'growth_factor': plotter.plot_growth_factor(),
+            'log_slope': plotter.plot_log_slope()
         }
 
         for plot in plots.values():
