@@ -1,0 +1,96 @@
+import enum
+import pathlib
+from typing import Dict, Optional, Union
+
+import jinja2
+
+from case_rate.dataset import ConfirmedCases
+from case_rate.report import HTMLReport
+from case_rate.timeseries import TimeSeries
+
+
+_PathLike = Union[str, pathlib.Path]
+
+
+class OutputType(enum.Enum):
+    '''Specifies the dashboard output types.'''
+    DEFAULT = enum.auto()
+    DASHBOARD = enum.auto()
+
+
+class Dashboard(object):
+    '''Generate a dashboard view when comparing multiple countries/regions.
+
+    The dashboard takes care of generating the underlying reports and then
+    saving the HTML files.  The default mode is render a single report with
+    each country/region overlaid onto the same graph.  The "dashboard" mode
+    will generate a set of HTML pages, with a single landing page and multiple
+    detail pages.
+    '''
+    def __init__(self, mode: OutputType = OutputType.DEFAULT,
+                 output: _PathLike = 'dashboard.html',
+                 source: Optional[str] = None,
+                 confidence: float = 0.95,
+                 filter_window: int = 7):
+        '''
+        Parameters
+        ----------
+        mode : OutputType, optional
+            the generated report type, by default OutputType.DEFAULT
+        output : Path-like
+            name of the dashboard HTML file, by default 'dashboard.html'
+        source : str, optional
+            path to the data's source repository, by default `None`
+        confidence : float, optional
+            the confidence interval percentage, by default 0.95
+        filter_window : int, optional
+            the size of the sliding window for the least-squares filter; by
+            default 7
+        '''
+        self._output_mode = mode
+        self._output_path = pathlib.Path(output)
+        self._source = source
+        self._analysis_config = {
+            'confidence': confidence,
+            'window': filter_window
+        }
+        self._env = jinja2.Environment(
+            loader=jinja2.PackageLoader(__package__, 'templates'),
+            autoescape=jinja2.select_autoescape(['html'])
+        )
+
+    def generate(self, cases: Dict[str, ConfirmedCases]):
+        '''Generate the HTML dashboard for the given case reports.
+
+        Parameters
+        ----------
+        cases : Dict[str, ConfirmedCases]
+            a dictionary of case reports, keyed by the region names
+        '''
+        report: ConfirmedCases
+        filtered = {
+            region: report.filter(min_confirmed=1)
+            for region, report in cases.items()
+        }
+
+        timeseries = {
+            region: TimeSeries(reports, **self._analysis_config)
+            for region, reports in filtered.items()
+        }
+
+        if self._output_mode == OutputType.DEFAULT:
+            self._detail_page(timeseries)
+        elif self._output_mode == OutputType.DASHBOARD:
+            raise NotImplementedError('Dashboard view not yet implemented.')
+
+    def _detail_page(self, timeseries: Dict[str, TimeSeries]):
+        '''Generates the single HTML report (aka detail view).
+
+        Parameters
+        ----------
+        timeseries : Dict[str, TimeSeries]
+            dictionary containing the timeseries for each region
+        '''
+        html = HTMLReport()
+        with self._output_path.open('w') as f:
+            f.write(html.generate_report(timeseries, self._source))

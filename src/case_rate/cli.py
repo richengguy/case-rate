@@ -6,7 +6,7 @@ import click
 import matplotlib.pyplot as plt
 import numpy as np
 
-# from case_rate import DataSource, ReportSet, TimeSeries
+from case_rate.dashboard import Dashboard
 from case_rate.dataset import DataSource, ConfirmedCases
 from case_rate.report import HTMLReport
 from case_rate.timeseries import TimeSeries
@@ -82,20 +82,17 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
     dataset = DataSource(ctx.obj['DATASET_PATH'])
     cases = dataset.cases
 
-    if len(countries) == 0:
-        data = {'World': TimeSeries(cases.filter(min_confirmed=1))}
-    else:
-        data = {
-            country: TimeSeries(cases.for_country(country).filter(min_confirmed=1))  # noqa: E501
-            for country in countries
-        }
-
     click.echo(click.style('Output: ', bold=True) + outpath.as_posix())
-    report = HTMLReport()
-    html = report.generate_report(data, dataset.github_link)
+    click.secho('Region(s): ', bold=True)
+    if len(countries) == 0:
+        click.echo('World')
+        data = {'World': cases}
+    else:
+        click.echo(', '.join(countries))
+        data = {country: cases.for_country(country) for country in countries}
 
-    with outpath.open('w') as f:
-        f.write(html)
+    dashboard = Dashboard(output=outpath, source=dataset.github_link)
+    dashboard.generate(data)
 
     click.echo('Generated report...' + click.style('\u2713', fg='green'))
     if not no_browser:
