@@ -2,7 +2,6 @@ import pathlib
 from typing import Optional, Tuple
 
 import click
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 
