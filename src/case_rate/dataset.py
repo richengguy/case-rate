@@ -146,14 +146,6 @@ class Report(object):
             ]
         )
 
-    def for_country_by_region(self, country: str) -> Dict[str, 'Report']:  # noqa: E501
-        '''Break down a report by its subnational regions.
-
-        This acts a lot like :meth:`for_country` except that it will further
-        breakdown a
-        '''
-        pass
-
 
 _TimeSeries = Iterator[Tuple[Tuple[int], Report]]
 

@@ -112,8 +112,6 @@ class TimeSeries(object):
         number of confirmed COVID-19 cases
     deaths: list of ``int``
         number of COVID-19-related deaths
-    recovered: list of ``int``
-        number of confirmed COVID-19 recoveries
     '''
     def __init__(self, reports: ReportSet, confidence: float = 0.95,
                  window: int = 7):
@@ -145,7 +143,7 @@ class TimeSeries(object):
 
     def as_list(self) -> List[Tuple[int, int, int]]:
         '''Convert the time series into a list.'''
-        return list(zip(self.confirmed, self.deaths, self.recovered))
+        return list(zip(self.confirmed, self.deaths))
 
     def as_numpy(self) -> np.ndarray:
         '''Convert the time series into a numpy array.'''
