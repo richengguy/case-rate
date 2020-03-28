@@ -132,7 +132,6 @@ class TimeSeries(object):
         self.days = [(date - self.dates[0]).days for date in self.dates]
         self.confirmed = [daily.total_confirmed for daily in reports.reports]
         self.deaths = [daily.total_deaths for daily in reports.reports]
-        self.recovered = [daily.total_recovered for daily in reports.reports]
 
         self._window = window
         self._confidence = confidence

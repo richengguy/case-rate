@@ -124,17 +124,17 @@ def info(ctx: click.Context, country: Optional[str], details: bool):
 
     click.echo('First: {}-{:02}-{:02}'.format(*(reports.dates[0])))
     click.echo('  - Confirmed: {}'.format(reports.reports[0].total_confirmed))
-    click.echo('  - Recovered: {}'.format(reports.reports[0].total_recovered))
+    click.echo('  - Deaths:    {}'.format(reports.reports[0].total_deaths))
     click.echo('Last:  {}-{:02}-{:02}'.format(*(reports.dates[-1])))
     click.echo('  - Confirmed: {}'.format(reports.reports[-1].total_confirmed))
-    click.echo('  - Recovered: {}'.format(reports.reports[-1].total_recovered))
+    click.echo('  - Deaths:    {}'.format(reports.reports[-1].total_deaths))
 
     if details:
         click.secho('Reporting:', bold=True)
-        click.echo('{:>10} {:>10} {:>10} {:>10}'.format('Date', 'Confirmed', 'Deaths', 'Resolved'))  # noqa: E501
+        click.echo('{:>10} {:>10} {:>10}'.format('Date', 'Confirmed', 'Deaths'))  # noqa: E501
         timeseries = TimeSeries(reports)
-        for date, (confirmed, deaths, resolved) in zip(timeseries.dates, timeseries.as_list()):  # noqa: E501
-            click.echo('{:10} {:10} {:10} {:10}'.format(str(date), confirmed, deaths, resolved))  # noqa: E501
+        for date, (confirmed, deaths) in zip(timeseries.dates, timeseries.as_list()):  # noqa: E501
+            click.echo('{:10} {:10} {:10}'.format(str(date), confirmed, deaths))  # noqa: E501
 
 
 @main.command()
