@@ -67,24 +67,6 @@ def _get_github_link(path: pathlib.Path = None) -> str:
     return github_url.decode().rstrip()
 
 
-def _parse_name(csvfile: pathlib.Path) -> Tuple[int, int, int]:
-    '''Parse the month-day-year file name format.
-
-    Parameters
-    ----------
-    csvfile : pathlib.Path
-        path to one of the daily report CSV files
-
-    Returns
-    -------
-    Tuple[int, int, int]
-        a ``(year, month, day)`` tuple
-    '''
-    name = csvfile.stem
-    parts = name.split('-')
-    return int(parts[2]), int(parts[0]), int(parts[1])
-
-
 class Entry(object):
     '''A single entry within a daily report.
 
@@ -326,6 +308,41 @@ class ReportSet(object):
     @property
     def reports(self) -> List[Report]:
         return list(self._reports.values())
+
+    def filter(self, min_confirmed: Optional[int] = None,
+               min_deaths: Optional[int] = None) -> 'ReportSet':
+        '''Filter a report set based on some criteria.
+
+        The filtering allows a new report set to be generated based on the
+        number of confirmed cases or reported deaths.
+
+        Parameters
+        ----------
+        min_confirmed : int, optional
+            the minimum number of confirmed cases
+        min_deaths : int
+            the minimum number of reported deaths
+
+        Returns
+        -------
+        ReportSet
+            the filtered report set
+        '''
+        has_min_confirmed = min_confirmed is not None
+        has_min_deaths = min_deaths is not None
+
+        subset: OrderedDict[Tuple[int, int, int], Report] = OrderedDict()
+        for date, report in self._reports.items():
+            confirmed = report.total_confirmed
+            deaths = report.total_deaths
+
+            meets_min_confirmed = has_min_confirmed and confirmed >= min_confirmed  # noqa: E501
+            meets_min_deaths = has_min_deaths and deaths >= min_deaths
+
+            if meets_min_confirmed or meets_min_deaths:
+                subset[date] = report
+
+        return ReportSet(subset=subset)
 
     def for_country(self, country: str) -> 'ReportSet':
         '''Obtain the set of reports for just a single country.

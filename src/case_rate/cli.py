@@ -78,10 +78,10 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
     dataset = Dataset(ctx.obj['DATASET_PATH'])
 
     if len(countries) == 0:
-        data = {'World': TimeSeries(dataset.reports)}
+        data = {'World': TimeSeries(dataset.reports.filter(min_confirmed=1))}
     else:
         data = {
-            country: TimeSeries(dataset.for_country(country))
+            country: TimeSeries(dataset.for_country(country).filter(min_confirmed=1))  # noqa: E501
             for country in countries
         }
 
