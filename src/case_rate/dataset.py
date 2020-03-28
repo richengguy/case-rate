@@ -9,6 +9,9 @@ from urllib.parse import urlparse, urlunsplit
 import click
 
 
+_TimeSeries = Iterator[Tuple[Tuple[int], 'Report']]
+
+
 def _git(*args, cwd: pathlib.Path = None,
          output_stdout: bool = False) -> Optional[str]:
     '''Run a git command using subprocess.
@@ -65,89 +68,6 @@ def _get_github_link(path: pathlib.Path = None) -> str:
                              github_path.as_posix().encode(), '', ''])
 
     return github_url.decode().rstrip()
-
-
-class Entry(object):
-    '''A single entry within a daily report.
-
-    Attributes
-    ----------
-    province: str or ``None``
-        the sub-national region the entry is for; optional
-    country: str
-        the country the entry is for
-    confirmed: int
-        number of confirmed COVID-19 cases
-    deaths: int
-        number of COVID-19-related deaths
-    '''
-    def __init__(self, province: Optional[str], country: str, confirmed: str,
-                 deaths: str):
-        self.province = province
-        self.country = country
-        self.confirmed = int(confirmed)
-        self.deaths = int(deaths)
-
-
-class Report(object):
-    '''Represents the contents of a single "daily report" CSV file.
-
-    Attributes
-    ----------
-    entries: list of ``Entry`` instances
-        a list of all entries within the report
-    '''
-    def __init__(self, entries: List[Entry]):
-        '''
-        Parameters
-        ----------
-        entries : list of ``Entry`` objects
-            set of of report entries that make up the full report
-        '''
-        self._entries = entries.copy()
-
-    def __len__(self):
-        return len(self._entries)
-
-    @property
-    def entries(self) -> List[Entry]:
-        return self._entries
-
-    @property
-    def total_confirmed(self) -> int:
-        '''Number of total confirmed cases in the report.'''
-        return self.reduce(lambda confirmed, entry: confirmed + entry.confirmed)  # noqa: E501
-
-    @property
-    def total_deaths(self) -> int:
-        '''Number of total deaths in the report.'''
-        return self.reduce(lambda deaths, entry: deaths + entry.deaths)
-
-    def reduce(self, fn: Callable[[int, Entry], int]) -> int:
-        '''Applies a reduction onto the report entries.'''
-        return functools.reduce(fn, self._entries, 0)
-
-    def for_country(self, country: str) -> 'Report':
-        '''Obtain all reports for the particular country.
-
-        Parameters
-        ----------
-        country : str
-            the country name
-
-        Returns
-        -------
-        Report
-            another daily report with just the entries for that country
-        '''
-        return Report(
-            entries=[
-                entry for entry in self._entries if entry.country == country
-            ]
-        )
-
-
-_TimeSeries = Iterator[Tuple[Tuple[int], Report]]
 
 
 def _validate_header(header: List[str]):
@@ -249,6 +169,86 @@ def _parse_timeseries(csv_confirmed: pathlib.Path,
             )
 
         yield (year, month, day), Report(entries)
+
+
+class Entry(object):
+    '''A single entry within a daily report.
+
+    Attributes
+    ----------
+    province: str or ``None``
+        the sub-national region the entry is for; optional
+    country: str
+        the country the entry is for
+    confirmed: int
+        number of confirmed COVID-19 cases
+    deaths: int
+        number of COVID-19-related deaths
+    '''
+    def __init__(self, province: Optional[str], country: str, confirmed: str,
+                 deaths: str):
+        self.province = province
+        self.country = country
+        self.confirmed = int(confirmed)
+        self.deaths = int(deaths)
+
+
+class Report(object):
+    '''Represents the contents of a single "daily report" CSV file.
+
+    Attributes
+    ----------
+    entries: list of ``Entry`` instances
+        a list of all entries within the report
+    '''
+    def __init__(self, entries: List[Entry]):
+        '''
+        Parameters
+        ----------
+        entries : list of ``Entry`` objects
+            set of of report entries that make up the full report
+        '''
+        self._entries = entries.copy()
+
+    def __len__(self):
+        return len(self._entries)
+
+    @property
+    def entries(self) -> List[Entry]:
+        return self._entries
+
+    @property
+    def total_confirmed(self) -> int:
+        '''Number of total confirmed cases in the report.'''
+        return self.reduce(lambda confirmed, entry: confirmed + entry.confirmed)  # noqa: E501
+
+    @property
+    def total_deaths(self) -> int:
+        '''Number of total deaths in the report.'''
+        return self.reduce(lambda deaths, entry: deaths + entry.deaths)
+
+    def reduce(self, fn: Callable[[int, Entry], int]) -> int:
+        '''Applies a reduction onto the report entries.'''
+        return functools.reduce(fn, self._entries, 0)
+
+    def for_country(self, country: str) -> 'Report':
+        '''Obtain all reports for the particular country.
+
+        Parameters
+        ----------
+        country : str
+            the country name
+
+        Returns
+        -------
+        Report
+            another daily report with just the entries for that country
+        '''
+        return Report(
+            entries=[
+                entry for entry in self._entries if entry.country == country
+            ]
+        )
 
 
 class ReportSet(object):
