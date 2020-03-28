@@ -1,5 +1,6 @@
 import pathlib
 from typing import Optional, Tuple
+import webbrowser
 
 import click
 import matplotlib.pyplot as plt
@@ -60,10 +61,20 @@ def download(ctx: click.Context, repo):
 @click.option('-o', '--output', help='Location of the output file.',
               default='report.html',
               type=click.Path(dir_okay=False, file_okay=True))
+@click.option('--no-browser', is_flag=True,
+              help='Do not open up the report in a browser.')
 @click.pass_context
-def report(ctx: click.Context, countries: Tuple[str], output: str):
-    '''Generate a daily COVID-19 report.'''
+def report(ctx: click.Context, countries: Tuple[str], output: str,
+           no_browser: bool):
+    '''Generate a daily COVID-19 report.
+
+    The report is one or more HTML pages with Bokeh-powered plots.  There are a
+    few different generation options.  The defaults will output a single,
+    aggregate report for all reported world-wide cases into a `report.html`
+    file.  It will also open up the report in a browser.
+    '''
     preamble(ctx)
+    outpath = pathlib.Path(output).resolve()
     dataset = Dataset(ctx.obj['DATASET_PATH'])
 
     if len(countries) == 0:
@@ -74,14 +85,16 @@ def report(ctx: click.Context, countries: Tuple[str], output: str):
             for country in countries
         }
 
-    click.echo(click.style('Output: ', bold=True) + output)
+    click.echo(click.style('Output: ', bold=True) + outpath.as_posix())
     report = HTMLReport()
     html = report.generate_report(data, dataset.github_link)
 
-    with open(output, 'w') as f:
+    with outpath.open('w') as f:
         f.write(html)
 
     click.echo('Generated report...' + click.style('\u2713', fg='green'))
+    if not no_browser:
+        webbrowser.open_new_tab(outpath.as_uri())
 
 
 @main.command()
