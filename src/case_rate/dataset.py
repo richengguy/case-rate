@@ -3,7 +3,7 @@ import csv
 import functools
 import pathlib
 import subprocess
-from typing import Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Callable, Iterator, List, Optional, Tuple
 from urllib.parse import urlparse, urlunsplit
 
 import click
