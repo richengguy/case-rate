@@ -5,7 +5,8 @@ import bokeh.resources
 import bokeh.embed
 import jinja2
 
-from case_rate import Plotter, TimeSeries
+from case_rate.timeseries import TimeSeries
+from case_rate.plotting import Plotter
 
 
 class HTMLReport(object):

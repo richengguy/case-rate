@@ -6,8 +6,10 @@ import click
 import matplotlib.pyplot as plt
 import numpy as np
 
-from case_rate import Dataset, ReportSet, TimeSeries
+# from case_rate import DataSource, ReportSet, TimeSeries
+from case_rate.dataset import DataSource, ConfirmedCases
 from case_rate.report import HTMLReport
+from case_rate.timeseries import TimeSeries
 
 
 def preamble(ctx: click.Context):
@@ -50,9 +52,9 @@ def download(ctx: click.Context, repo):
     '''
     preamble(ctx)
     if ctx.obj['DATASET_PATH'].exists():
-        Dataset.update(ctx.obj['DATASET_PATH'])
+        DataSource.update(ctx.obj['DATASET_PATH'])
     else:
-        Dataset.create(repo, ctx.obj['DATASET_PATH'])
+        DataSource.create(repo, ctx.obj['DATASET_PATH'])
 
 
 @main.command()
@@ -63,9 +65,11 @@ def download(ctx: click.Context, repo):
               type=click.Path(dir_okay=False, file_okay=True))
 @click.option('--no-browser', is_flag=True,
               help='Do not open up the report in a browser.')
+@click.option('--dashboard', is_flag=True,
+              help='Generate a dashboard rather that overlaying countries.')
 @click.pass_context
 def report(ctx: click.Context, countries: Tuple[str], output: str,
-           no_browser: bool):
+           no_browser: bool, dashboard: bool):
     '''Generate a daily COVID-19 report.
 
     The report is one or more HTML pages with Bokeh-powered plots.  There are a
@@ -75,13 +79,14 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
     '''
     preamble(ctx)
     outpath = pathlib.Path(output).resolve()
-    dataset = Dataset(ctx.obj['DATASET_PATH'])
+    dataset = DataSource(ctx.obj['DATASET_PATH'])
+    cases = dataset.cases
 
     if len(countries) == 0:
-        data = {'World': TimeSeries(dataset.reports.filter(min_confirmed=1))}
+        data = {'World': TimeSeries(cases.filter(min_confirmed=1))}
     else:
         data = {
-            country: TimeSeries(dataset.for_country(country).filter(min_confirmed=1))  # noqa: E501
+            country: TimeSeries(cases.for_country(country).filter(min_confirmed=1))  # noqa: E501
             for country in countries
         }
 
@@ -109,8 +114,8 @@ def info(ctx: click.Context, country: Optional[str], details: bool):
     specified, the particular country.
     '''
     preamble(ctx)
-    dataset = Dataset(ctx.obj['DATASET_PATH'])
-    reports = dataset.reports
+    dataset = DataSource(ctx.obj['DATASET_PATH'])
+    reports = dataset.cases
 
     if country is not None:
         reports = reports.for_country(country)
@@ -146,7 +151,7 @@ def plot(ctx: click.Context, countries):
 
     This will generate plots for the confirmed cases along a semi-log y-axis.
     '''
-    def plot_confirmed(reports: ReportSet, name: str):
+    def plot_confirmed(reports: ConfirmedCases, name: str):
         timeseries = TimeSeries(reports)
         filtered = timeseries.smoothed
         plt.semilogy(timeseries.dates, filtered, label=name)
@@ -173,7 +178,7 @@ def plot(ctx: click.Context, countries):
         plt.plot(timeseries.dates, smoothed, label=name)
 
     preamble(ctx)
-    dataset = Dataset(ctx.obj['DATASET_PATH'])
+    dataset = DataSource(ctx.obj['DATASET_PATH'])
     click.secho('Plotting: ', bold=True, nl=False)
 
     # Sort countries from highest to lowest in count.
@@ -186,7 +191,7 @@ def plot(ctx: click.Context, countries):
     # Confirmed Cases
     if len(countries) == 0:
         click.echo('all reports')
-        plot_confirmed(dataset.reports, 'all')
+        plot_confirmed(dataset.cases, 'all')
     else:
         click.echo(', '.join(countries))
         for country in countries:
@@ -201,7 +206,7 @@ def plot(ctx: click.Context, countries):
     # Growth Factors
     plt.figure()
     if len(countries) == 0:
-        timeseries = TimeSeries(dataset.reports)
+        timeseries = TimeSeries(dataset.cases)
         xmin = timeseries.dates[0]
         xmax = timeseries.dates[-1]
         plot_growth_factor(timeseries, 'all')
@@ -230,7 +235,7 @@ def plot(ctx: click.Context, countries):
     # Daily New Cases
     plt.figure()
     if len(countries) == 0:
-        timeseries = TimeSeries(dataset.reports)
+        timeseries = TimeSeries(dataset.cases)
         plot_daily_cases(timeseries, 'all')
     else:
         xmin = None  # type: ignore
@@ -248,7 +253,7 @@ def plot(ctx: click.Context, countries):
     # Log-slope estimate
     plt.figure()
     if len(countries) == 0:
-        timeseries = TimeSeries(dataset.reports)
+        timeseries = TimeSeries(dataset.cases)
         plot_log_slope(timeseries, 'all')
     else:
         xmin = None  # type: ignore

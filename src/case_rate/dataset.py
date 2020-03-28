@@ -168,7 +168,7 @@ def _parse_timeseries(csv_confirmed: pathlib.Path,
                       row_deaths[column])
             )
 
-        yield (year, month, day), Report(entries)
+        yield (year, month, day), DailyReport(entries)
 
 
 class Entry(object):
@@ -193,8 +193,8 @@ class Entry(object):
         self.deaths = int(deaths)
 
 
-class Report(object):
-    '''Represents the contents of a single "daily report" CSV file.
+class DailyReport(object):
+    '''Represents a set of all reported cases for a particular date.
 
     Attributes
     ----------
@@ -231,7 +231,7 @@ class Report(object):
         '''Applies a reduction onto the report entries.'''
         return functools.reduce(fn, self._entries, 0)
 
-    def for_country(self, country: str) -> 'Report':
+    def for_country(self, country: str) -> 'DailyReport':
         '''Obtain all reports for the particular country.
 
         Parameters
@@ -241,29 +241,34 @@ class Report(object):
 
         Returns
         -------
-        Report
+        Cases
             another daily report with just the entries for that country
         '''
-        return Report(
+        return DailyReport(
             entries=[
                 entry for entry in self._entries if entry.country == country
             ]
         )
 
 
-class ReportSet(object):
-    '''A report of all COVID-19 cases in the dataset.
+class ConfirmedCases(object):
+    '''A collection of all confirmed COVID-19 case reports.
 
-    This provides a simple mechanism to represent the contents of the
-    repository.
+    The object collects all of the :class:`DailyReport`s into an ordered list
+    to make it possible to access number of COVID-19 cases, confirmed and
+    deceased, by date.
 
     Attributes
     ----------
     dates: list of ``(year, month, day)``
-        a list of all available dates within the report collection
+        a list of all fo the dates for each case
+    cases: list of :class:`DailyReport`
+        a list of the daily case reports
     '''
-    CONFIRMED_CASES = pathlib.Path('time_series_covid19_confirmed_global.csv')
-    DEATHS = pathlib.Path('time_series_covid19_deaths_global.csv')
+    _CONFIRMED_CASES = pathlib.Path('time_series_covid19_confirmed_global.csv')
+    _DEATHS = pathlib.Path('time_series_covid19_deaths_global.csv')
+
+    _date = Tuple[int, int, int]
 
     def __init__(self,
                  path: Optional[pathlib.Path] = None,
@@ -282,8 +287,8 @@ class ReportSet(object):
             raise ValueError('Can only have either path or entries, not both.')
 
         if path is not None:
-            confirmed = path / ReportSet.CONFIRMED_CASES
-            deaths = path / ReportSet.DEATHS
+            confirmed = path / ConfirmedCases._CONFIRMED_CASES
+            deaths = path / ConfirmedCases._DEATHS
             self._reports = OrderedDict()
             for date, report in _parse_timeseries(confirmed, deaths):
                 self._reports[date] = report
@@ -298,11 +303,11 @@ class ReportSet(object):
         return list(self._reports.keys())
 
     @property
-    def reports(self) -> List[Report]:
+    def reports(self) -> List[DailyReport]:
         return list(self._reports.values())
 
     def filter(self, min_confirmed: Optional[int] = None,
-               min_deaths: Optional[int] = None) -> 'ReportSet':
+               min_deaths: Optional[int] = None) -> 'ConfirmedCases':
         '''Filter a report set based on some criteria.
 
         The filtering allows a new report set to be generated based on the
@@ -312,18 +317,27 @@ class ReportSet(object):
         ----------
         min_confirmed : int, optional
             the minimum number of confirmed cases
-        min_deaths : int
+        min_deaths : int, optional
             the minimum number of reported deaths
 
         Returns
         -------
-        ReportSet
-            the filtered report set
+        ConfirmedCases
+            a new set of case reports filtered according to the provided
+            criteria
+
+        Raises
+        ------
+        ValueError
+            if no filtering criteria was provided
         '''
         has_min_confirmed = min_confirmed is not None
         has_min_deaths = min_deaths is not None
 
-        subset: OrderedDict[Tuple[int, int, int], Report] = OrderedDict()
+        if has_min_confirmed is False and has_min_deaths is False:
+            raise ValueError('No filtering criteria was provided.')
+
+        subset: OrderedDict[DailyReport._date, DailyReport] = OrderedDict()
         for date, report in self._reports.items():
             confirmed = report.total_confirmed
             deaths = report.total_deaths
@@ -334,36 +348,36 @@ class ReportSet(object):
             if meets_min_confirmed or meets_min_deaths:
                 subset[date] = report
 
-        return ReportSet(subset=subset)
+        return ConfirmedCases(subset=subset)
 
-    def for_country(self, country: str) -> 'ReportSet':
+    def for_country(self, country: str) -> 'ConfirmedCases':
         '''Obtain the set of reports for just a single country.
 
         Parameters
         ----------
         country: str
-            the name of the country
+            the name of the country/region
 
         Returns
         -------
-        ReportSet
-            a new report set with information on just that country
+        ConfirmedCases
+            the subset of confirmed cases for that country
         '''
-        subset: OrderedDict[Tuple[int, int, int], Report] = OrderedDict()
+        subset: OrderedDict[DailyReport._date, DailyReport] = OrderedDict()
         for date, report in self._reports.items():
             entries = report.for_country(country)
             if len(entries) > 0:
                 subset[date] = entries
 
-        return ReportSet(subset=subset)
+        return ConfirmedCases(subset=subset)
 
 
-class Dataset(object):
+class DataSource(object):
     '''Represents the contents of a time-series dataset.
 
     Attributes
     ----------
-    reports : ReportsCollection
+    reports : ReportSet
         the collection of available daily reports
     github_link : str
         the browser-friendly link to the URL source
@@ -381,7 +395,7 @@ class Dataset(object):
         path = pathlib.Path(path)
         if not path.exists():
             raise ValueError(f'{path} does not exist.')
-        self._reports = ReportSet(path=path / Dataset.TIME_SERIES)
+        self._cases = ConfirmedCases(path=path / DataSource.TIME_SERIES)
         self._link = _get_github_link(path)
 
     @property
@@ -389,26 +403,11 @@ class Dataset(object):
         return self._link
 
     @property
-    def reports(self) -> ReportSet:
-        return self._reports
-
-    def for_country(self, country: str) -> ReportSet:
-        '''Obtain the reports for a particular country.
-
-        Parameters
-        ----------
-        country : str
-            name of the country
-
-        Returns
-        -------
-        ReportSet
-            case data for just that country
-        '''
-        return self._reports.for_country(country)
+    def cases(self) -> ConfirmedCases:
+        return self._cases
 
     @staticmethod
-    def create(repo: str, path: pathlib.Path) -> 'Dataset':
+    def create(repo: str, path: pathlib.Path) -> 'DataSource':
         '''Creates a dataset at the given path.
 
         This will check out the git repo and clone it to the specified folder.
@@ -427,10 +426,10 @@ class Dataset(object):
         '''
         click.echo(f'Cloning "{repo}" to "{path}"')
         _git('clone', repo, path.as_posix())
-        return Dataset(path)
+        return DataSource(path)
 
     @staticmethod
-    def update(path: pathlib.Path) -> 'Dataset':
+    def update(path: pathlib.Path) -> 'DataSource':
         '''Update an existing data set at the specified path.
 
         Parameters
@@ -445,4 +444,4 @@ class Dataset(object):
         '''
         click.echo(f'Updating COVID-19 dataset at "{path}".')
         _git('pull', cwd=path)
-        return Dataset(path)
+        return DataSource(path)
