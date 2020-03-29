@@ -3,11 +3,9 @@ from typing import Optional, Tuple
 import webbrowser
 
 import click
-import matplotlib.pyplot as plt
-import numpy as np
 
 from case_rate.dashboard import Dashboard, OutputType
-from case_rate.dataset import DataSource, ConfirmedCases
+from case_rate.dataset import DataSource
 from case_rate.timeseries import TimeSeries
 
 

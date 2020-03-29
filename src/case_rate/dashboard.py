@@ -2,8 +2,6 @@ import enum
 import pathlib
 from typing import Dict, Optional, Union
 
-import jinja2
-
 from case_rate.dataset import ConfirmedCases
 from case_rate.report import HTMLReport
 from case_rate.timeseries import TimeSeries
