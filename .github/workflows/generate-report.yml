@@ -1,0 +1,28 @@
+name: Generate nightly report.
+
+on:
+  # Run this nightly at 1:30am.
+  schedule:
+    - cron: "30 1 * * *"
+
+  # Also allow it to be manually triggered.
+  repository_dispatch:
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+    - name: Install the package and dependencies.
+      run: |
+        python -m pip install --upgrade pip
+        pip install .
+    - name: Grab latest JHU CSSE COVID-19 dataset
+      run: |
+        covid19 download
+    - name: Generate the nightly report.
+        covid19 report -c Canada -c US --dashboard
