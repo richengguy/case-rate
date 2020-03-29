@@ -1,6 +1,10 @@
 name: Generate nightly report.
 
 on:
+  push:
+    - branches:
+      - report-action
+
   # Run this nightly at 1:30am.
   schedule:
     - cron: "30 1 * * *"
