@@ -95,13 +95,13 @@ class HTMLReport(object):
             info['new_cases'] = data[region].daily_new_cases()[-1]
             info['multiplier'] = {
                 'estimate': multiplier[0],
-                'upper': multiplier[1],
-                'lower': multiplier[2]
+                'lower': multiplier[1],
+                'upper': multiplier[2]
             }
             info['growth_factor'] = {
                 'estimate': gf[0],
-                'upper': gf[1],
-                'lower': gf[2]
+                'lower': gf[1],
+                'upper': gf[2]
             }
 
             stats[region] = info
