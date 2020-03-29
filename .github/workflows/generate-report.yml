@@ -36,9 +36,4 @@ jobs:
         path: gh-pages
     - name: Commit latest report to the gh-pages branch.
       run: |
-        cp index.html gh-pages/index.html
-        cp details-*.html gh-pages/.
-        cd gh-pages
-        git add *.html
-        git commit -m "Updated on $(date)."
-        git push
+        ./scripts/update-gh-pages.sh
