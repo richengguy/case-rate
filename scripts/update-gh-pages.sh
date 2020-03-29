@@ -9,7 +9,7 @@ cd gh-pages
 # Need to use the GitHub authentication token to cause a gh-pages build.  More
 # details here;
 # https://www.innoq.com/en/blog/github-actions-automation/
-repo_uri = "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+repo_uri="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
 git config user.name "richengguy"
 git config user.email "richengguy@users.noreply.github.com"
