@@ -34,7 +34,9 @@ jobs:
       with:
         ref: gh-pages
         path: gh-pages
-    - name: Sanity check
+    - name: Commit latest report to the gh-pages branch.
       run: |
-        ls *.html
-        cd gh-pages && ls
+        cp index.html gh-pages/index.html
+        cp details-*.html gh-pages/.
+        cd gh-pages
+        ls
