@@ -39,4 +39,6 @@ jobs:
         cp index.html gh-pages/index.html
         cp details-*.html gh-pages/.
         cd gh-pages
-        git add *.html && git commit -m "Updated on $(date)." && git push
+        git add *.html
+        git commit -m "Updated on $(date)."
+        git push
