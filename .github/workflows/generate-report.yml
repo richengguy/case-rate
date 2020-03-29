@@ -35,5 +35,6 @@ jobs:
         ref: gh-pages
         path: gh-pages
     - name: Commit latest report to the gh-pages branch.
-      run: |
-        ./scripts/update-gh-pages.sh
+      run: ./scripts/update-gh-pages.sh
+      env:
+        GITHUB_TOKEN: ${{ secrets.github_token }}
