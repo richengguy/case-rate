@@ -1,9 +1,9 @@
-name: case-rate
+name: Run case-rate Smoke Test
 
 on: [ push ]
 
 jobs:
-  build:
+  smoke-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
