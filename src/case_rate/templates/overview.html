@@ -30,20 +30,8 @@
                     <ul class="list-unstyled">
                         <li>Total Confirmed: {{ stats[region].total_confirmed }}</li>
                         <li>New Cases: {{ stats[region].new_cases }}</li>
-                        <li>
-                            Growth Factor: {{ stats[region].growth_factor.estimate | round(3) }}
-                            <dl class="row">
-                                <dt class="col-sm-4">Upper:</dt>    <dd class="col-sm-8">{{ stats[region].growth_factor.upper | round(3) }}</dd>
-                                <dt class="col-sm-4">Lower:</dt>    <dd class="col-sm-8">{{ stats[region].growth_factor.lower | round(3) }}</dd>
-                            </dl>
-                        </li>
-                        <li>
-                            Daily Multiplier: {{ stats[region].multiplier.estimate | round(3) }}
-                            <dl class="row">
-                                <dt class="col-sm-4">Upper:</dt>    <dd class="col-sm-8">{{ stats[region].multiplier.upper | round(3) }}</dd>
-                                <dt class="col-sm-4">Lower:</dt>    <dd class="col-sm-8">{{ stats[region].multiplier.lower | round(3) }}</dd>
-                            </dl>
-                        </li>
+                        <li>Growth Factor: {{ stats[region].growth_factor.estimate | round(3) }}</li>
+                        <li>Daily Multiplier: {{ stats[region].multiplier.estimate | round(3) }}</li>
                     </ul>
                     </div>
                 </div>
