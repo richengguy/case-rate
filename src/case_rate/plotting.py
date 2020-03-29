@@ -74,7 +74,7 @@ class Plotter(object):
 
     def plot_new_cases(self) -> bokeh.plotting.Figure:
         '''Plot daily new cases over time.'''
-        p = bokeh.plotting.figure(title='New Daily Cases',
+        p = bokeh.plotting.figure(title='Daily New Cases',
                                   x_axis_label='Date',
                                   x_axis_type='datetime',
                                   y_axis_label='Cases')

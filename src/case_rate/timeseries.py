@@ -5,7 +5,7 @@ import numpy as np
 import scipy.signal
 import scipy.stats
 
-from case_rate.dataset import Report, ReportSet
+from case_rate.dataset import DailyReport, ConfirmedCases
 
 
 class _LeastSq(object):
@@ -112,10 +112,8 @@ class TimeSeries(object):
         number of confirmed COVID-19 cases
     deaths: list of ``int``
         number of COVID-19-related deaths
-    recovered: list of ``int``
-        number of confirmed COVID-19 recoveries
     '''
-    def __init__(self, reports: ReportSet, confidence: float = 0.95,
+    def __init__(self, reports: ConfirmedCases, confidence: float = 0.95,
                  window: int = 7):
         '''
         Parameters
@@ -127,12 +125,11 @@ class TimeSeries(object):
         window : int
             filtering window used for slope estimation
         '''
-        daily: Report
+        daily: DailyReport
         self.dates = [datetime.date(year, month, day) for year, month, day in reports.dates]  # noqa: E501
         self.days = [(date - self.dates[0]).days for date in self.dates]
         self.confirmed = [daily.total_confirmed for daily in reports.reports]
         self.deaths = [daily.total_deaths for daily in reports.reports]
-        self.recovered = [daily.total_recovered for daily in reports.reports]
 
         self._window = window
         self._confidence = confidence
@@ -146,7 +143,7 @@ class TimeSeries(object):
 
     def as_list(self) -> List[Tuple[int, int, int]]:
         '''Convert the time series into a list.'''
-        return list(zip(self.confirmed, self.deaths, self.recovered))
+        return list(zip(self.confirmed, self.deaths))
 
     def as_numpy(self) -> np.ndarray:
         '''Convert the time series into a numpy array.'''

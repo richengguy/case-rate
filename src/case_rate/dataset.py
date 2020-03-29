@@ -3,10 +3,13 @@ import csv
 import functools
 import pathlib
 import subprocess
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Iterator, List, Optional, Tuple
 from urllib.parse import urlparse, urlunsplit
 
 import click
+
+
+_TimeSeries = Iterator[Tuple[Tuple[int], 'Report']]
 
 
 def _git(*args, cwd: pathlib.Path = None,
@@ -67,22 +70,105 @@ def _get_github_link(path: pathlib.Path = None) -> str:
     return github_url.decode().rstrip()
 
 
-def _parse_name(csvfile: pathlib.Path) -> Tuple[int, int, int]:
-    '''Parse the month-day-year file name format.
+def _validate_header(header: List[str]):
+    '''Validate the header within the time series CSV file.
+
+    This will throw an exception if the header is malformed (or has been
+    changed).
 
     Parameters
     ----------
-    csvfile : pathlib.Path
-        path to one of the daily report CSV files
+    header : List[str]
+        list of header fields
 
-    Returns
-    -------
-    Tuple[int, int, int]
-        a ``(year, month, day)`` tuple
+    Raises
+    ------
+    RuntimeError
+        if the header is invalid, with the reason being stored within the
+        exception string
     '''
-    name = csvfile.stem
-    parts = name.split('-')
-    return int(parts[2]), int(parts[0]), int(parts[1])
+    expected_names = [
+        'Province/State',
+        'Country/Region',
+        'Lat',
+        'Long'
+    ]
+    for expected, found in zip(expected_names, header[0:5]):
+        if expected != found:
+            raise RuntimeError(
+                f'Found {found} field in header; expected {expected}.')
+
+
+def _parse_timeseries(csv_confirmed: pathlib.Path,
+                      csv_deaths: pathlib.Path) -> _TimeSeries:
+    '''Parses the time series CSVs into a set of daily reports.
+
+    The parsing process will ensure that the reports are returned in
+    chronological order.
+
+    Parameters
+    ----------
+    csv_confirmed : pathlib.Path
+        path to the CSV file with confirmed cases
+    csv_deaths : pathlib.Path
+        path to the CSV file with reported deaths
+
+    Yields
+    ------
+    `(year, month, day)`
+        a tuple with the date
+    Report
+        the day report object for that date
+    '''
+    with csv_confirmed.open() as f_conf, csv_deaths.open() as f_deaths:
+        timeseries_confirmed = csv.reader(f_conf)
+        timeseries_deaths = csv.reader(f_deaths)
+
+        # Grab the headers and make sure that they match.
+        header: List[str]
+        header = next(timeseries_confirmed)
+        _validate_header(header)
+
+        if header != next(timeseries_deaths):
+            raise RuntimeError('Time series headers do no match!')
+
+        # Pull out all of the rows because they need to be transposed into
+        # columns.
+        rows_confirmed = [row for row in timeseries_confirmed]
+        rows_deaths = [row for row in timeseries_deaths]
+
+        if len(rows_confirmed) != len(rows_deaths):
+            raise RuntimeError(
+                'Number of rows in "confirmed" and "deaths" tables '
+                'don\'t match.')
+
+        if len(rows_confirmed[0]) != len(rows_deaths[0]):
+            raise RuntimeError(
+                'Number of columns in "confirmed" and "deaths" tables '
+                'don\'t match.')
+
+    num_cols = len(rows_confirmed[0])
+
+    for column in range(4, num_cols):
+        # Parse the date parameters.
+        date = header[column].split('/')
+        month, day, year = tuple(int(item) for item in date)
+        year += 2000
+
+        # Generate the daily report for each country/region.
+        entries = []  # type: List[Entry]
+
+        row_confirmed: List[str]
+        row_deaths: List[str]
+        for row_confirmed, row_deaths in zip(rows_confirmed, rows_deaths):
+            country = row_confirmed[1]
+            province = row_confirmed[0] if len(row_confirmed[0]) != 0 else None
+            entries.append(
+                Entry(province, country, row_confirmed[column],
+                      row_deaths[column])
+            )
+
+        yield (year, month, day), DailyReport(entries)
 
 
 class Entry(object):
@@ -98,69 +184,31 @@ class Entry(object):
         number of confirmed COVID-19 cases
     deaths: int
         number of COVID-19-related deaths
-    recovered: int
-        number of confirmed COVID-19 recoveries
     '''
-    class _Fields(object):
-        PROVINCE = 'Province/State'
-        COUNTRY = 'Country/Region'
-        CONFIRMED = 'Confirmed'
-        DEATHS = 'Deaths'
-        RECOVERED = 'Recovered'
-
-    def __init__(self, row):
-        def get(row: dict, field: str) -> Optional[str]:
-            try:
-                return row[field]
-            except KeyError:
-                return None
-
-        def to_int(row: dict, field: str) -> int:
-            value = get(row, field)
-            if value is None:
-                return 0
-
-            try:
-                return int(value)
-            except ValueError:
-                return 0
-
-        self.province = get(row, Entry._Fields.PROVINCE)
-        self.country = get(row, Entry._Fields.COUNTRY)
-        self.confirmed = to_int(row, Entry._Fields.CONFIRMED)
-        self.deaths = to_int(row, Entry._Fields.DEATHS)
-        self.recovered = to_int(row, Entry._Fields.RECOVERED)
+    def __init__(self, province: Optional[str], country: str, confirmed: str,
+                 deaths: str):
+        self.province = province
+        self.country = country
+        self.confirmed = int(confirmed)
+        self.deaths = int(deaths)
 
 
-class Report(object):
-    '''Represents the contents of a single "daily report" CSV file.
+class DailyReport(object):
+    '''Represents a set of all reported cases for a particular date.
 
     Attributes
     ----------
     entries: list of ``Entry`` instances
         a list of all entries within the report
     '''
-    def __init__(self,
-                 path: Optional[pathlib.Path] = None,
-                 entries: Optional[List[Entry]] = None):
+    def __init__(self, entries: List[Entry]):
         '''
         Parameters
         ----------
-        path : pathlib.Path or ``None``
-            path to the report CSV file
-        entries: list of ``Entry`` objects, or ``None``
+        entries : list of ``Entry`` objects
+            set of of report entries that make up the full report
         '''
-        if path is None and entries is None:
-            raise ValueError('Need to provide either CSV path or entries.')
-        if path is not None and entries is not None:
-            raise ValueError('Can only have either path or entries, not both.')
-
-        if path is not None:
-            with path.open() as f:
-                report = csv.DictReader(f)
-                self._entries = [Entry(row) for row in report]
-        elif entries is not None:
-            self._entries = entries.copy()
+        self._entries = entries.copy()
 
     def __len__(self):
         return len(self._entries)
@@ -179,16 +227,11 @@ class Report(object):
         '''Number of total deaths in the report.'''
         return self.reduce(lambda deaths, entry: deaths + entry.deaths)
 
-    @property
-    def total_recovered(self) -> int:
-        '''Number of total recoveries in the report.'''
-        return self.reduce(lambda recovered, entry: recovered + entry.recovered)  # noqa: E501
-
     def reduce(self, fn: Callable[[int, Entry], int]) -> int:
         '''Applies a reduction onto the report entries.'''
         return functools.reduce(fn, self._entries, 0)
 
-    def for_country(self, country: str) -> 'Report':
+    def for_country(self, country: str) -> 'DailyReport':
         '''Obtain all reports for the particular country.
 
         Parameters
@@ -198,27 +241,35 @@ class Report(object):
 
         Returns
         -------
-        Report
+        Cases
             another daily report with just the entries for that country
         '''
-        return Report(
+        return DailyReport(
             entries=[
                 entry for entry in self._entries if entry.country == country
             ]
         )
 
 
-class ReportSet(object):
-    '''A report of all COVID-19 cases in the dataset.
+class ConfirmedCases(object):
+    '''A collection of all confirmed COVID-19 case reports.
 
-    This provides a simple mechanism to represent the contents of the
-    repository.
+    The object collects all of the :class:`DailyReport`s into an ordered list
+    to make it possible to access number of COVID-19 cases, confirmed and
+    deceased, by date.
 
     Attributes
     ----------
     dates: list of ``(year, month, day)``
-        a list of all available dates within the report collection
+        a list of all fo the dates for each case
+    cases: list of :class:`DailyReport`
+        a list of the daily case reports
     '''
+    _CONFIRMED_CASES = pathlib.Path('time_series_covid19_confirmed_global.csv')
+    _DEATHS = pathlib.Path('time_series_covid19_deaths_global.csv')
+
+    _date = Tuple[int, int, int]
+
     def __init__(self,
                  path: Optional[pathlib.Path] = None,
                  subset: Optional[OrderedDict] = None):
@@ -236,18 +287,11 @@ class ReportSet(object):
             raise ValueError('Can only have either path or entries, not both.')
 
         if path is not None:
-            files = path.glob('*.csv')
-
-            reports = []
-            for csvfile in files:
-                date = _parse_name(csvfile)
-                reports.append((date, Report(csvfile)))
-
-            reports.sort(key=lambda entry: entry[0][2])  # sort by day
-            reports.sort(key=lambda entry: entry[0][1])  # sort by month
-            reports.sort(key=lambda entry: entry[0][0])  # sort by year
-
-            self._reports = OrderedDict(reports)
+            confirmed = path / ConfirmedCases._CONFIRMED_CASES
+            deaths = path / ConfirmedCases._DEATHS
+            self._reports = OrderedDict()
+            for date, report in _parse_timeseries(confirmed, deaths):
+                self._reports[date] = report
         elif subset is not None:
             self._reports = subset
 
@@ -259,43 +303,87 @@ class ReportSet(object):
         return list(self._reports.keys())
 
     @property
-    def reports(self) -> List[Report]:
+    def reports(self) -> List[DailyReport]:
         return list(self._reports.values())
 
-    def for_country(self, country: str) -> 'ReportSet':
+    def filter(self, min_confirmed: Optional[int] = None,
+               min_deaths: Optional[int] = None) -> 'ConfirmedCases':
+        '''Filter a report set based on some criteria.
+
+        The filtering allows a new report set to be generated based on the
+        number of confirmed cases or reported deaths.
+
+        Parameters
+        ----------
+        min_confirmed : int, optional
+            the minimum number of confirmed cases
+        min_deaths : int, optional
+            the minimum number of reported deaths
+
+        Returns
+        -------
+        ConfirmedCases
+            a new set of case reports filtered according to the provided
+            criteria
+
+        Raises
+        ------
+        ValueError
+            if no filtering criteria was provided
+        '''
+        has_min_confirmed = min_confirmed is not None
+        has_min_deaths = min_deaths is not None
+
+        if has_min_confirmed is False and has_min_deaths is False:
+            raise ValueError('No filtering criteria was provided.')
+
+        subset: OrderedDict[DailyReport._date, DailyReport] = OrderedDict()
+        for date, report in self._reports.items():
+            confirmed = report.total_confirmed
+            deaths = report.total_deaths
+
+            meets_min_confirmed = has_min_confirmed and confirmed >= min_confirmed  # noqa: E501
+            meets_min_deaths = has_min_deaths and deaths >= min_deaths
+
+            if meets_min_confirmed or meets_min_deaths:
+                subset[date] = report
+
+        return ConfirmedCases(subset=subset)
+
+    def for_country(self, country: str) -> 'ConfirmedCases':
         '''Obtain the set of reports for just a single country.
 
         Parameters
         ----------
         country: str
-            the name of the country
+            the name of the country/region
 
         Returns
         -------
-        ReportSet
-            a new report set with information on just that country
+        ConfirmedCases
+            the subset of confirmed cases for that country
         '''
-        subset: OrderedDict[Tuple[int, int, int], Report] = OrderedDict()
+        subset: OrderedDict[DailyReport._date, DailyReport] = OrderedDict()
         for date, report in self._reports.items():
             entries = report.for_country(country)
             if len(entries) > 0:
                 subset[date] = entries
 
-        return ReportSet(subset=subset)
+        return ConfirmedCases(subset=subset)
 
 
-class Dataset(object):
+class DataSource(object):
     '''Represents the contents of a time-series dataset.
 
     Attributes
     ----------
-    reports : ReportsCollection
+    reports : ReportSet
         the collection of available daily reports
     github_link : str
         the browser-friendly link to the URL source
     '''
     DATA = pathlib.PurePath('csse_covid_19_data')
-    DAILY_REPORTS = DATA / pathlib.PurePath('csse_covid_19_daily_reports')
+    TIME_SERIES = DATA / pathlib.PurePath('csse_covid_19_time_series')
 
     def __init__(self, path: pathlib.Path):
         '''
@@ -307,7 +395,7 @@ class Dataset(object):
         path = pathlib.Path(path)
         if not path.exists():
             raise ValueError(f'{path} does not exist.')
-        self._reports = ReportSet(path=path / Dataset.DAILY_REPORTS)
+        self._cases = ConfirmedCases(path=path / DataSource.TIME_SERIES)
         self._link = _get_github_link(path)
 
     @property
@@ -315,26 +403,11 @@ class Dataset(object):
         return self._link
 
     @property
-    def reports(self) -> ReportSet:
-        return self._reports
-
-    def for_country(self, country: str) -> ReportSet:
-        '''Obtain the reports for a particular country.
-
-        Parameters
-        ----------
-        country : str
-            name of the country
-
-        Returns
-        -------
-        ReportSet
-            case data for just that country
-        '''
-        return self._reports.for_country(country)
+    def cases(self) -> ConfirmedCases:
+        return self._cases
 
     @staticmethod
-    def create(repo: str, path: pathlib.Path) -> 'Dataset':
+    def create(repo: str, path: pathlib.Path) -> 'DataSource':
         '''Creates a dataset at the given path.
 
         This will check out the git repo and clone it to the specified folder.
@@ -353,10 +426,10 @@ class Dataset(object):
         '''
         click.echo(f'Cloning "{repo}" to "{path}"')
         _git('clone', repo, path.as_posix())
-        return Dataset(path)
+        return DataSource(path)
 
     @staticmethod
-    def update(path: pathlib.Path) -> 'Dataset':
+    def update(path: pathlib.Path) -> 'DataSource':
         '''Update an existing data set at the specified path.
 
         Parameters
@@ -371,4 +444,4 @@ class Dataset(object):
         '''
         click.echo(f'Updating COVID-19 dataset at "{path}".')
         _git('pull', cwd=path)
-        return Dataset(path)
+        return DataSource(path)

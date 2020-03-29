@@ -109,13 +109,12 @@ Last:  2020-03-20
   - Recovered: 9
 ```
 
-Finally, you can generate Matplotlib plots using `plot` or an HTML report with
-`report`, e.g.:
+Finally, you can generate an HTML report with `report`, e.g.:
 
 ```
-$ covid19 plot -c Canada
+$ covid19 report -c Canada -c US
 ```
 
-will produce
+This will produce an HTML report similar to the image below.
 
-![Example plot](docs/case-plot.png)
+![Example plot](docs/case-report.png)
