@@ -1,16 +1,9 @@
 name: Generate nightly report.
 
 on:
-  push:
-    branches:
-      - report-action
-
   # Run this nightly at 1:30am.
   schedule:
     - cron: "30 1 * * *"
-
-  # Also allow it to be manually triggered.
-  repository_dispatch:
 
 jobs:
   generate-report:
