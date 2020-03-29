@@ -1,4 +1,4 @@
-name: case-rate
+name: Run case-rate Smoke Test
 
 on: [ push ]
 
