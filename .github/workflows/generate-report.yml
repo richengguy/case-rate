@@ -25,9 +25,16 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install .
-    - name: Grab latest JHU CSSE COVID-19 dataset
+    - name: Generate the nightly report using the latest JHU CSSE data.
       run: |
         covid19 download
-    - name: Generate the nightly report.
+        covid19 report --dashboard --output index.html -c Canada -c US
+    - name: Checkout the gh-pages branch in its own folder.
+      uses: actions/checkout@v2
+      with:
+        ref: gh-pages
+        path: gh-pages
+    - name: Sanity check
       run: |
-        covid19 report -c Canada -c US --dashboard
+        ls *.html
+        cd gh-pages && ls
