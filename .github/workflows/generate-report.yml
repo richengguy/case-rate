@@ -2,7 +2,7 @@ name: Generate nightly report.
 
 on:
   push:
-    - branches:
+    branches:
       - report-action
 
   # Run this nightly at 1:30am.
