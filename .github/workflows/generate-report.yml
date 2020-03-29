@@ -5,6 +5,11 @@ on:
   schedule:
     - cron: "30 1 * * *"
 
+  # Also update anytime 'master' is updated.
+  push:
+    branches:
+      - master
+
 jobs:
   generate-report:
     runs-on: ubuntu-latest
