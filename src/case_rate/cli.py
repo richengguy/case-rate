@@ -6,9 +6,8 @@ import click
 import matplotlib.pyplot as plt
 import numpy as np
 
-from case_rate.dashboard import Dashboard
+from case_rate.dashboard import Dashboard, OutputType
 from case_rate.dataset import DataSource, ConfirmedCases
-from case_rate.report import HTMLReport
 from case_rate.timeseries import TimeSeries
 
 
@@ -65,11 +64,11 @@ def download(ctx: click.Context, repo):
               type=click.Path(dir_okay=False, file_okay=True))
 @click.option('--no-browser', is_flag=True,
               help='Do not open up the report in a browser.')
-@click.option('--dashboard', is_flag=True,
+@click.option('--dashboard', 'generate_dashboard', is_flag=True,
               help='Generate a dashboard rather that overlaying countries.')
 @click.pass_context
 def report(ctx: click.Context, countries: Tuple[str], output: str,
-           no_browser: bool, dashboard: bool):
+           no_browser: bool, generate_dashboard: bool):
     '''Generate a daily COVID-19 report.
 
     The report is one or more HTML pages with Bokeh-powered plots.  There are a
@@ -83,7 +82,7 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
     cases = dataset.cases
 
     click.echo(click.style('Output: ', bold=True) + outpath.as_posix())
-    click.secho('Region(s): ', bold=True)
+    click.secho('Region(s): ', bold=True, nl=False)
     if len(countries) == 0:
         click.echo('World')
         data = {'World': cases}
@@ -91,7 +90,13 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
         click.echo(', '.join(countries))
         data = {country: cases.for_country(country) for country in countries}
 
+    click.secho('Dashboard: ', bold=True, nl=False)
     dashboard = Dashboard(output=outpath, source=dataset.github_link)
+    if generate_dashboard:
+        click.echo('Yes')
+        dashboard.output_mode = OutputType.DASHBOARD
+    else:
+        click.echo('No')
     dashboard.generate(data)
 
     click.echo('Generated report...' + click.style('\u2713', fg='green'))

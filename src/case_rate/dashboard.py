@@ -47,17 +47,14 @@ class Dashboard(object):
             the size of the sliding window for the least-squares filter; by
             default 7
         '''
-        self._output_mode = mode
+        self.output_mode = mode
         self._output_path = pathlib.Path(output)
         self._source = source
         self._analysis_config = {
             'confidence': confidence,
             'window': filter_window
         }
-        self._env = jinja2.Environment(
-            loader=jinja2.PackageLoader(__package__, 'templates'),
-            autoescape=jinja2.select_autoescape(['html'])
-        )
+        self._html = HTMLReport()
 
     def generate(self, cases: Dict[str, ConfirmedCases]):
         '''Generate the HTML dashboard for the given case reports.
@@ -78,10 +75,10 @@ class Dashboard(object):
             for region, reports in filtered.items()
         }
 
-        if self._output_mode == OutputType.DEFAULT:
+        if self.output_mode == OutputType.DEFAULT:
             self._detail_page(timeseries)
-        elif self._output_mode == OutputType.DASHBOARD:
-            raise NotImplementedError('Dashboard view not yet implemented.')
+        elif self.output_mode == OutputType.DASHBOARD:
+            self._dashboard_page(timeseries)
 
     def _detail_page(self, timeseries: Dict[str, TimeSeries]):
         '''Generates the single HTML report (aka detail view).
@@ -91,6 +88,22 @@ class Dashboard(object):
         timeseries : Dict[str, TimeSeries]
             dictionary containing the timeseries for each region
         '''
-        html = HTMLReport()
         with self._output_path.open('w') as f:
-            f.write(html.generate_report(timeseries, self._source))
+            f.write(self._html.generate_report(timeseries, self._source))
+
+    def _dashboard_page(self, timeseries: Dict[str, TimeSeries]):
+        '''Generates the dashboard view with regional detail views.
+
+        Parameters
+        ----------
+        timeseries : Dict[str, TimeSeries]
+            dictionary containing the timeseries for each region
+        '''
+        overview, details = self._html.generate_overview(timeseries, self._source)  # noqa: E501
+        with self._output_path.open('w') as f:
+            f.write(overview)
+
+        for filename, html in details.items():
+            path = pathlib.Path(filename)
+            with path.open('w') as f:
+                f.write(html)
