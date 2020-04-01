@@ -29,7 +29,8 @@ class Dashboard(object):
                  output: _PathLike = 'dashboard.html',
                  source: Optional[str] = None,
                  confidence: float = 0.95,
-                 filter_window: int = 7):
+                 filter_window: int = 7,
+                 min_confirmed: int = 1):
         '''
         Parameters
         ----------
@@ -44,6 +45,9 @@ class Dashboard(object):
         filter_window : int, optional
             the size of the sliding window for the least-squares filter; by
             default 7
+        min_confirmed : int, optional
+            the minimum number of minimum confirmed cases for the date to be
+            included in the report
         '''
         self.output_mode = mode
         self._output_path = pathlib.Path(output)
@@ -52,6 +56,7 @@ class Dashboard(object):
             'confidence': confidence,
             'window': filter_window
         }
+        self._min_confirmed = min_confirmed
         self._html = HTMLReport()
 
     def generate(self, cases: Dict[str, ConfirmedCases]):
@@ -64,7 +69,7 @@ class Dashboard(object):
         '''
         report: ConfirmedCases
         filtered = {
-            region: report.filter(min_confirmed=1)
+            region: report.filter(min_confirmed=self._min_confirmed)
             for region, report in cases.items()
         }
 

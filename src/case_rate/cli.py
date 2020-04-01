@@ -60,13 +60,18 @@ def download(ctx: click.Context, repo):
 @click.option('-o', '--output', help='Location of the output file.',
               default='report.html',
               type=click.Path(dir_okay=False, file_okay=True))
+@click.option('--min-confirmed', nargs=1, type=int, default=1,
+              help='Remove entries lower that the minimum confirmed number.')
+@click.option('--filter-window', nargs=1, type=int, default=7,
+              help='Window size when performing least-squares.')
 @click.option('--no-browser', is_flag=True,
               help='Do not open up the report in a browser.')
 @click.option('--dashboard', 'generate_dashboard', is_flag=True,
               help='Generate a dashboard rather that overlaying countries.')
 @click.pass_context
 def report(ctx: click.Context, countries: Tuple[str], output: str,
-           no_browser: bool, generate_dashboard: bool):
+           min_confirmed: int, filter_window: int, no_browser: bool,
+           generate_dashboard: bool):
     '''Generate a daily COVID-19 report.
 
     The report is one or more HTML pages with Bokeh-powered plots.  There are a
@@ -89,7 +94,10 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
         data = {country: cases.for_country(country) for country in countries}
 
     click.secho('Dashboard: ', bold=True, nl=False)
-    dashboard = Dashboard(output=outpath, source=dataset.github_link)
+    dashboard = Dashboard(output=outpath,
+                          source=dataset.github_link,
+                          min_confirmed=min_confirmed,
+                          filter_window=filter_window)
     if generate_dashboard:
         click.echo('Yes')
         dashboard.output_mode = OutputType.DASHBOARD
