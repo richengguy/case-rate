@@ -1,7 +1,7 @@
 import abc
 import datetime
 import sqlite3
-from typing import Any
+from typing import Any, Generator, NamedTuple, Optional
 
 from ._types import PathLike
 
@@ -25,12 +25,68 @@ sqlite3.register_adapter(datetime.date, _adapt_date)
 sqlite3.register_converter('timestamp', _convert_date)
 
 
-class StorageError(Exception):
-    '''Used to indicate that something went wrong with the storage backend.'''
+class Cases(NamedTuple):
+    date: datetime.date
+    province: str
+    country: str
+    confirmed: int
+    deceased: int
+    resolved: int
+
+
+class Testing(NamedTuple):
+    date: datetime.date
+    province: str
+    country: str
+    tested: int
+    under_investigation: int
 
 
 class InputSource(abc.ABC):
-    '''Defines an object that case provide data to the storage backend.'''
+    '''Defines an object that case provide data to the storage backend.
+
+    Attributes
+    ----------
+    name : str
+        a unique identifier for the input source
+    details : str
+        a more friendly description when displaying the source information
+    url : str
+        a URL to the source location
+    '''
+    @abc.abstractproperty
+    def name(self) -> str:
+        pass
+
+    @abc.abstractproperty
+    def details(self) -> str:
+        pass
+
+    @abc.abstractproperty
+    def url(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    def cases(self) -> Generator[Cases, None, None]:
+        '''The number of COVID-19 cases and their current status.
+
+        Yields
+        ------
+        :class:`Cases`
+            A named tuple containing the date and the number of confirmed,
+            resolved and deceased cases.
+        '''
+
+    @abc.abstractmethod
+    def testing(self) -> Generator[Testing, None, None]:
+        '''The number of COVID-19 tests (completed and in-progress).
+
+        Yields
+        ------
+        :class:`Testing`
+            A named tuple containing the date and the number of completed and
+            in-progress tests.
+        '''
 
 
 class Storage:
@@ -40,6 +96,15 @@ class Storage:
     to support ingesting information from multiple sources and putting them
     into a single, uniform database.
     '''
+    class Error(Exception):
+        '''Used to indicate that something went wrong with the backend.'''
+
+    class _Source(NamedTuple):
+        name: str
+        details: str
+        url: str
+        source_id: int
+
     def __init__(self, path: PathLike = ':memory:'):
         '''
         Parameters
@@ -76,6 +141,7 @@ class Storage:
                 CREATE TABLE IF NOT EXISTS sources (
                     name TEXT,
                     details TEXT,
+                    url TEXT,
                     UNIQUE (name)
                 );
                 CREATE TABLE IF NOT EXISTS cases (
@@ -93,8 +159,71 @@ class Storage:
                     province TEXT,
                     country TEXT,
                     tested INTEGER,
-                    under_investigation INTEGER
+                    under_investigation INTEGER,
+                    source INTEGER,
+                    FOREIGN KEY (source) REFERENCES sources(name)
                 )
                 ''')
         except sqlite3.IntegrityError as e:
-            raise StorageError('Failed to initialize storage backend.') from e
+            raise Storage.Error('Failed to initialize storage backend.') from e
+
+    def populate(self, source: InputSource):
+        '''Populate the database with the contents from an input source.
+
+        Parameters
+        ----------
+        source : :class:`InputSource`
+            an input source object that will populate the internal database
+        '''
+        with self._conn:
+            # Check if the source exists and if not, register it.
+            pass
+
+    def _get_source(self, source: InputSource) -> Optional['Storage._Source']:
+        '''Obtain the database reference for the current source.
+
+        Parameters
+        ----------
+        source : :class:`InputSource`
+            an input source object
+
+        Returns
+        -------
+        _Source or ``None``
+            the input source; will be ``None`` if it's not in the database
+        '''
+        with self._conn:
+            cursor = self._conn.cursor()
+            row = cursor.execute(
+                'SELECT rowid, * FROM sources WHERE name == ?',
+                (source.name,)).fetchone()
+            if row is None:
+                return None
+
+            return Storage._Source(row['name'], row['details'], row['url'],
+                                   row['rowid'])
+
+    def _register(self, source: InputSource) -> 'Storage._Source':
+        '''Register the input source with the database.
+
+        Parameters
+        ----------
+        source : InputSource
+            the input source being registered
+
+        Returns
+        -------
+        _Source
+            a database reference to the input source
+        '''
+        with self._conn:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                'INSERT INTO sources (name, details, url) VALUES (?,?,?)',
+                (source.name, source.details, source.url))
+
+        ref = self._get_source(source)
+        if ref is None:
+            raise Storage.Error('Failed to register source with the backend.')
+
+        return ref
