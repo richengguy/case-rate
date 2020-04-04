@@ -1,11 +1,13 @@
 import abc
 import datetime
 import sqlite3
-from typing import Any, Generator, NamedTuple, Optional
+from typing import (Any, Dict, Generator, List, NamedTuple, Optional, Tuple,
+                    Union)
 
 from ._types import PathLike
 
 __all__ = [
+    'InputSource',
     'Storage'
 ]
 
@@ -34,7 +36,7 @@ class Cases(NamedTuple):
     resolved: int
 
 
-class Testing(NamedTuple):
+class CaseTesting(NamedTuple):
     date: datetime.date
     province: str
     country: str
@@ -78,12 +80,12 @@ class InputSource(abc.ABC):
         '''
 
     @abc.abstractmethod
-    def testing(self) -> Generator[Testing, None, None]:
+    def testing(self) -> Generator[CaseTesting, None, None]:
         '''The number of COVID-19 tests (completed and in-progress).
 
         Yields
         ------
-        :class:`Testing`
+        :class:`CaseTesting`
             A named tuple containing the date and the number of completed and
             in-progress tests.
         '''
@@ -123,6 +125,16 @@ class Storage:
     def __exit__(self, type, value, traceback):
         self._conn.close()
 
+    @property
+    def sources(self) -> Dict[str, Tuple[str, str]]:
+        rows = self._conn.execute('SELECT * FROM sources')
+
+        sources: Dict[str, Tuple[str, str]] = {}
+        for row in rows:
+            sources[row['name']] = (row['details'], row['url'])
+
+        return sources
+
     def initialize(self):
         '''Initialize the internal SQL tables.
 
@@ -146,10 +158,10 @@ class Storage:
                 );
                 CREATE TABLE IF NOT EXISTS cases (
                     date DATE,
-                    province TEXT
+                    province TEXT,
                     country TEXT,
                     confirmed INTEGER,
-                    recovered INTEGER,
+                    resolved INTEGER,
                     deceased INTEGER,
                     source INTEGER,
                     FOREIGN KEY (source) REFERENCES sources(name)
@@ -176,8 +188,99 @@ class Storage:
             an input source object that will populate the internal database
         '''
         with self._conn:
+            cursor = self._conn.cursor()
+
             # Check if the source exists and if not, register it.
-            pass
+            ref = self._get_source(source.name)
+            if ref is None:
+                ref = self._register(source)
+
+            # Populate the set of confirmed cases.
+            cases: Cases
+            for cases in source.cases():
+                cursor.execute(
+                    'INSERT INTO cases VALUES (?,?,?,?,?,?,?)',
+                    (cases.date, cases.province, cases.country,
+                     cases.confirmed, cases.resolved, cases.deceased,
+                     ref.source_id))
+
+            # Populate the testing data.
+            tests: CaseTesting
+            for tests in source.testing():
+                cursor.execute(
+                    'INSERT INTO testing VALUES (?,?,?,?,?,?)',
+                    (tests.date, tests.province, tests.country,
+                     tests.tested, tests.under_investigation,
+                     ref.source_id)
+                )
+
+    def all_cases(self, source: Union[str, InputSource]) -> List[Cases]:
+        '''Return a list of all cases for the input source.
+
+        Parameters
+        ----------
+        source : a string or :class:`InputSource`
+            the input source to retrieve
+
+        Returns
+        -------
+        list of :class:`Cases`
+            All available cases in the database for the input source.
+        '''
+
+        cases: List[Cases] = []
+        for row in self._select(source, 'cases', Cases._fields):
+            cases.append(Cases(**row))
+
+        return cases
+
+    def all_tests(self, source: Union[str, InputSource]) -> List[CaseTesting]:
+        '''Return a list of all testing statuses for the input source.
+
+        Parameters
+        ----------
+        source : a string or :class:`InputSource`
+            the input source to retrieve
+
+        Returns
+        -------
+        list of :class;`CaseTesting`
+            All available testing results for the input source.
+        '''
+        tests: List[CaseTesting] = []
+        for row in self._select(source, 'testing', CaseTesting._fields):
+            tests.append(CaseTesting(**row))
+
+        return tests
+
+    def _select(self,
+                source: Union[str, InputSource],
+                table: str,
+                fields: Tuple[str]) -> Generator[Dict[str, Any], None, None]:
+        '''Pull rows from the database.
+
+        Parameters
+        ----------
+        source : Union[str, InputSource]
+            the input source to retrieve
+        table : str
+            the table being accessed
+        fields : Tuple[str]
+            columns to retrieve
+
+        Yields
+        ------
+        list of dictionaries
+            the obtained rows
+        '''
+        columns = ','.join(fields)
+        ref = self._get_source(source)
+        rows = self._conn.execute(
+            f'SELECT {columns} FROM {table} WHERE source == ? ',
+            (ref.source_id,))
+
+        for row in rows:
+            yield row
 
     def _get_source(self, source: InputSource) -> Optional['Storage._Source']:
         '''Obtain the database reference for the current source.
@@ -192,11 +295,13 @@ class Storage:
         _Source or ``None``
             the input source; will be ``None`` if it's not in the database
         '''
+        name = source.name if isinstance(source, InputSource) else source
         with self._conn:
             cursor = self._conn.cursor()
             row = cursor.execute(
                 'SELECT rowid, * FROM sources WHERE name == ?',
-                (source.name,)).fetchone()
+                (name,)).fetchone()
+
             if row is None:
                 return None
 
@@ -222,7 +327,7 @@ class Storage:
                 'INSERT INTO sources (name, details, url) VALUES (?,?,?)',
                 (source.name, source.details, source.url))
 
-        ref = self._get_source(source)
+        ref = self._get_source(source.name)
         if ref is None:
             raise Storage.Error('Failed to register source with the backend.')
 
