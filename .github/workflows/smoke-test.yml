@@ -15,6 +15,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install .[dev]
+    - name: Run the unit tests.
+      run: |
+        pytest --verbose .
     - name: Run a flake8 check
       run: |
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
