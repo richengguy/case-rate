@@ -4,6 +4,7 @@ import webbrowser
 
 import click
 
+from case_rate import VERSION
 from case_rate.dashboard import Dashboard, OutputType
 from case_rate.dataset import DataSource
 from case_rate.timeseries import TimeSeries
@@ -11,7 +12,7 @@ from case_rate.timeseries import TimeSeries
 
 def preamble(ctx: click.Context):
     '''Print the command preamble.'''
-    click.secho('COVID-19 Case Rates', bold=True)
+    click.secho(f'COVID-19 Case Rates (v{VERSION})', bold=True)
     click.secho('--', bold=True)
     click.secho('Dataset Path: ', bold=True, nl=False)
     click.echo(ctx.obj['DATASET_PATH'])

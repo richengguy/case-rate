@@ -8,6 +8,7 @@ import bokeh.resources
 import jinja2
 import numpy as np
 
+from case_rate import VERSION
 from case_rate.timeseries import TimeSeries
 from case_rate.plotting import Plotter
 
@@ -120,7 +121,8 @@ class HTMLReport(object):
                                    new_cases=div,
                                    stats=stats,
                                    bokeh_resources=resources,
-                                   bokeh_scripts=script)
+                                   bokeh_scripts=script,
+                                   VERSION=VERSION)
 
         details = {
             stats[region]['link']: self.generate_report({region: timeseries})

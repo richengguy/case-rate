@@ -14,6 +14,7 @@
             <h1>COVID-19 Cases</h1>
             <ul class="list-unstyled">
                 <li>Date Generated: {{ date }}</li>
+                <li>case-rate Version: {{ VERSION }}</li>
                 {% if source is not none %}
                 <li>Source: <a href="{{ source }}">JHU CSSE GitHub Repo</a></li>
                 {% endif %}
