@@ -51,7 +51,8 @@ def _get_github_link(path: pathlib.Path = None) -> str:
     str
         the URL to the commit on GitHub
     '''
-    remote_url = urlparse(_git('config', '--get', 'remote.origin.url', cwd=path)[0])  # noqa: E501
+    query, _ = _git('config', '--get', 'remote.origin.url', cwd=path)
+    remote_url = urlparse(query.strip())
     commit_id = _git('rev-parse', '--verify', 'HEAD', cwd=path)[0].decode()
 
     if b'github.com' not in remote_url.netloc:
@@ -154,6 +155,7 @@ class JHUCSSESource(InputSource):
             click.echo(f'Updating JHU-CSSE COVID-19 dataset at "{path}".')
             stdout, stderr = _git('pull', cwd=path)
 
+        click.secho('stdout', fg='green', bold=True)
         click.echo(stdout)
         if len(stderr) != 0:
             click.secho('stderr', fg='red', bold=True)
