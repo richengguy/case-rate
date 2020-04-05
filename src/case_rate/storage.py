@@ -257,41 +257,54 @@ class Storage:
                      ref.source_id)
                 )
 
-    def all_cases(self, source: Union[str, InputSource]) -> List[Cases]:
+    def cases(self, source: Union[str, InputSource],
+              country: Optional[str] = None,
+              province: Optional[str] = None) -> List[Cases]:
         '''Return a list of all cases for the input source.
 
         Parameters
         ----------
         source : a string or :class:`InputSource`
             the input source to retrieve
+        country : str, optional
+            optionally select cases just from a single country
+        province : str, optional
+            optionally select cases from a single province/state
 
         Returns
         -------
         list of :class:`Cases`
             All available cases in the database for the input source.
         '''
-
+        region = (province, country)
         cases: List[Cases] = []
-        for row in self._select(source, 'cases', Cases._fields):
+        for row in self._select(source, 'cases', Cases._fields, region):
             cases.append(Cases(**row))
 
         return cases
 
-    def all_tests(self, source: Union[str, InputSource]) -> List[CaseTesting]:
+    def tests(self, source: Union[str, InputSource],
+              country: Optional[str] = None,
+              province: Optional[str] = None) -> List[CaseTesting]:
         '''Return a list of all testing statuses for the input source.
 
         Parameters
         ----------
         source : a string or :class:`InputSource`
             the input source to retrieve
+        country : str, optional
+            optionally select cases just from a single country
+        province : str, optional
+            optionally select cases from a single province/state
 
         Returns
         -------
         list of :class;`CaseTesting`
             All available testing results for the input source.
         '''
+        region = (province, country)
         tests: List[CaseTesting] = []
-        for row in self._select(source, 'testing', CaseTesting._fields):
+        for row in self._select(source, 'testing', CaseTesting._fields, region):  # noqa: E501
             tests.append(CaseTesting(**row))
 
         return tests

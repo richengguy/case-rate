@@ -61,7 +61,50 @@ class CaseOnlySource(InputSource):
             deceased=0)
 
 
-class TestStorage:
+class RegionalSource(InputSource):
+    @property
+    def name(self):
+        return 'RegionalSource'
+
+    @property
+    def details(self):
+        return 'Input source with regions.'
+
+    @property
+    def url(self):
+        return 'http://127.0.0.1'
+
+    def cases(self):
+        date = datetime.date(1234, 5, 6)
+
+        provinces = ['', '', 'province', 'province']
+        countries = ['', 'country', '', 'country']
+
+        for provice, country in zip(provinces, countries):
+            yield Cases(
+                date=date,
+                province=provice,
+                country=country,
+                confirmed=2,
+                resolved=1,
+                deceased=0)
+
+    def testing(self):
+        date = datetime.date(1234, 5, 6)
+
+        provinces = ['', '', 'province', 'province']
+        countries = ['', 'country', '', 'country']
+
+        for provice, country in zip(provinces, countries):
+            yield CaseTesting(
+                date=date,
+                province=provice,
+                country=country,
+                tested=10,
+                under_investigation=5)
+
+
+class TestStorageInternals:
     def test_date_insert(self):
         sample_date = datetime.date(1234, 5, 6)
         with Storage() as storage:
@@ -74,6 +117,29 @@ class TestStorage:
             assert row['date'].month == 5
             assert row['date'].day == 6
 
+    def test_generate_select(self):
+        sql, rgn = _generate_select('table', ('a', 'b', 'c'))
+        assert sql == 'SELECT a, b, c FROM table WHERE source == ?'
+        assert len(rgn) == 0
+
+        sql, rgn = _generate_select('table', ('a', 'b', 'c'), ('province', None))  # noqa: E501
+        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND province == ?'  # noqa: E501
+        assert len(rgn) == 1
+        assert rgn[0] == 'province'
+
+        sql, rgn = _generate_select('table', ('a', 'b', 'c'), (None, 'country'))  # noqa: E501
+        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND country == ?'  # noqa: E501
+        assert len(rgn) == 1
+        assert rgn[0] == 'country'
+
+        sql, rgn = _generate_select('table', ('a', 'b', 'c'), ('province', 'country'))  # noqa: E501
+        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND province == ? AND country == ?'  # noqa: E501
+        assert len(rgn) == 2
+        assert rgn[0] == 'province'
+        assert rgn[1] == 'country'
+
+
+class TestStorage:
     def test_source_register(self):
         test_source = MockedSource()
         with Storage() as storage:
@@ -96,14 +162,14 @@ class TestStorage:
             assert sources[test_source.name][0] == test_source.details
             assert sources[test_source.name][1] == test_source.url
 
-            cases = storage.all_cases('TestSource')
+            cases = storage.cases('TestSource')
             assert len(cases) == 1
             assert cases[0].date == sample_date
             assert cases[0].confirmed == 2
             assert cases[0].resolved == 1
             assert cases[0].deceased == 0
 
-            tests = storage.all_tests('TestSource')
+            tests = storage.tests('TestSource')
             assert len(tests) == 1
             assert tests[0].date == sample_date
             assert tests[0].tested == 10
@@ -115,33 +181,27 @@ class TestStorage:
         with Storage() as storage:
             storage.populate(test_source)
 
-            cases = storage.all_cases('CaseOnlySource')
+            cases = storage.cases('CaseOnlySource')
             assert len(cases) == 1
             assert cases[0].date == sample_date
             assert cases[0].confirmed == 2
             assert cases[0].resolved == 1
             assert cases[0].deceased == 0
 
-            tests = storage.all_tests('CaseOnlySource')
+            tests = storage.tests('CaseOnlySource')
             assert len(tests) == 0
 
-    def test_generate_select(self):
-        sql, rgn = _generate_select('table', ('a', 'b', 'c'))
-        assert sql == 'SELECT a, b, c FROM table WHERE source == ?'
-        assert len(rgn) == 0
+    def test_select_region(self):
+        test_source = RegionalSource()
+        with Storage() as storage:
+            storage.populate(test_source)
 
-        sql, rgn = _generate_select('table', ('a', 'b', 'c'), ('province', None))  # noqa: E501
-        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND province == ?'  # noqa: E501
-        assert len(rgn) == 1
-        assert rgn[0] == 'province'
+            assert len(storage.cases('RegionalSource')) == 4
+            assert len(storage.cases('RegionalSource', province='province')) == 2  # noqa: E501
+            assert len(storage.cases('RegionalSource', country='country')) == 2  # noqa: E501
+            assert len(storage.cases('RegionalSource', country='country', province='province')) == 1  # noqa: E501
 
-        sql, rgn = _generate_select('table', ('a', 'b', 'c'), (None, 'country'))  # noqa: E501
-        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND country == ?'  # noqa: E501
-        assert len(rgn) == 1
-        assert rgn[0] == 'country'
-
-        sql, rgn = _generate_select('table', ('a', 'b', 'c'), ('province', 'country'))  # noqa: E501
-        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND province == ? AND country == ?'  # noqa: E501
-        assert len(rgn) == 2
-        assert rgn[0] == 'province'
-        assert rgn[1] == 'country'
+            assert len(storage.tests('RegionalSource')) == 4
+            assert len(storage.tests('RegionalSource', province='province')) == 2  # noqa: E501
+            assert len(storage.tests('RegionalSource', country='country')) == 2  # noqa: E501
+            assert len(storage.tests('RegionalSource', country='country', province='province')) == 1  # noqa: E501
