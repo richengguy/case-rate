@@ -4,7 +4,7 @@ import sqlite3
 from typing import (Any, Dict, Generator, List, NamedTuple, Optional, Tuple,
                     Union)
 
-from ._types import PathLike
+from ._types import PathLike, Cases, CaseTesting
 
 __all__ = [
     'InputSource',
@@ -64,23 +64,6 @@ def _convert_date(value: bytes) -> Any:
 
 sqlite3.register_adapter(datetime.date, _adapt_date)
 sqlite3.register_converter('timestamp', _convert_date)
-
-
-class Cases(NamedTuple):
-    date: datetime.date
-    province: str
-    country: str
-    confirmed: int
-    deceased: int
-    resolved: int
-
-
-class CaseTesting(NamedTuple):
-    date: datetime.date
-    province: str
-    country: str
-    tested: int
-    under_investigation: int
 
 
 class InputSource(abc.ABC):
