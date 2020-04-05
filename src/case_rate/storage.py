@@ -12,6 +12,45 @@ __all__ = [
 ]
 
 
+def _generate_select(table: str, fields: Tuple[str],
+                     region: Tuple[Optional[str]] = (None, None)
+                     ) -> Tuple[str, Tuple[str]]:
+    '''Generates a select statement for SQL queries.
+
+    Parameters
+    ----------
+    table : str
+        name of the table to query
+    fields : Tuple[str]
+        list of columns to retrieve
+    region : ``(province, country)``, optional
+        region to select, by default ``(None, None)``
+
+    Returns
+    -------
+    statement : str
+        the SQL 'select' statement
+    region : ``(province, country)``
+        the region tuple, but filtered so that it can be passed along correctly
+        the select statement
+    '''
+    filtered = []
+    province, country = region
+
+    columns = ', '.join(fields)
+    query = f'SELECT {columns} FROM {table} WHERE source == ?'
+
+    if province is not None:
+        query += ' AND province == ?'
+        filtered.append(province)
+
+    if country is not None:
+        query += ' AND country == ?'
+        filtered.append(country)
+
+    return query, tuple(filtered)
+
+
 # Ensure dates are stored correctly within the database.
 def _adapt_date(date: datetime.date) -> str:
     return f'{date.year}-{date.month}-{date.day}'
@@ -260,28 +299,31 @@ class Storage:
     def _select(self,
                 source: Union[str, InputSource],
                 table: str,
-                fields: Tuple[str]) -> Generator[Dict[str, Any], None, None]:
+                fields: Tuple[str],
+                region: Tuple[Optional[str]] = (None, None)
+                ) -> Generator[Dict[str, Any], None, None]:
         '''Pull rows from the database.
 
         Parameters
         ----------
-        source : Union[str, InputSource]
+        source : ``str`` or :class:`InputSource`
             the input source to retrieve
         table : str
             the table being accessed
-        fields : Tuple[str]
+        fields : tuple of ``str``
             columns to retrieve
+        region : ``(province, country)``
+            the nation or subnational region to retrieve; if both are provided
+            then it's treated as an "and" condition
 
         Yields
         ------
         list of dictionaries
             the obtained rows
         '''
-        columns = ','.join(fields)
         ref = self._get_source(source)
-        rows = self._conn.execute(
-            f'SELECT {columns} FROM {table} WHERE source == ? ',
-            (ref.source_id,))
+        query, region = _generate_select(table, fields, region)
+        rows = self._conn.execute(query, (ref.source_id, *region))
 
         for row in rows:
             yield row

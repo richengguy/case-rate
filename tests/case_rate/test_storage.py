@@ -1,6 +1,7 @@
 import datetime
 
-from case_rate.storage import Storage, InputSource, Cases, CaseTesting
+from case_rate.storage import (Storage, InputSource, Cases, CaseTesting,
+                               _generate_select)
 
 
 class MockedSource(InputSource):
@@ -123,3 +124,24 @@ class TestStorage:
 
             tests = storage.all_tests('CaseOnlySource')
             assert len(tests) == 0
+
+    def test_generate_select(self):
+        sql, rgn = _generate_select('table', ('a', 'b', 'c'))
+        assert sql == 'SELECT a, b, c FROM table WHERE source == ?'
+        assert len(rgn) == 0
+
+        sql, rgn = _generate_select('table', ('a', 'b', 'c'), ('province', None))  # noqa: E501
+        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND province == ?'  # noqa: E501
+        assert len(rgn) == 1
+        assert rgn[0] == 'province'
+
+        sql, rgn = _generate_select('table', ('a', 'b', 'c'), (None, 'country'))  # noqa: E501
+        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND country == ?'  # noqa: E501
+        assert len(rgn) == 1
+        assert rgn[0] == 'country'
+
+        sql, rgn = _generate_select('table', ('a', 'b', 'c'), ('province', 'country'))  # noqa: E501
+        assert sql == 'SELECT a, b, c FROM table WHERE source == ? AND province == ? AND country == ?'  # noqa: E501
+        assert len(rgn) == 2
+        assert rgn[0] == 'province'
+        assert rgn[1] == 'country'
