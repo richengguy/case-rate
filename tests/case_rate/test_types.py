@@ -135,3 +135,26 @@ class TestTypes:
 
         with pytest.raises(ValueError):
             a + b
+
+    def test_cannot_sum_cases_with_casetesting(self):
+        cases = Cases(
+            date=datetime.date(1234, 5, 6),
+            province='province',
+            country='country',
+            confirmed=10,
+            resolved=5,
+            deceased=0
+        )
+        case_testing = CaseTesting(
+            date=datetime.date(1234, 5, 6),
+            province='First Province',
+            country='First Country',
+            tested=10,
+            under_investigation=1
+        )
+
+        with pytest.raises(TypeError):
+            cases + case_testing
+
+        with pytest.raises(TypeError):
+            case_testing + cases

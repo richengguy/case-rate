@@ -37,6 +37,9 @@ class Cases(NamedTuple):
     resolved: int
 
     def __add__(self, other: 'Cases') -> 'Cases':
+        if not isinstance(other, self.__class__):
+            raise TypeError('Must only add to another Cases object.')
+
         if self.date != other.date:
             raise ValueError('Cannot add case status for different dates.')
 
@@ -78,6 +81,9 @@ class CaseTesting(NamedTuple):
     under_investigation: int
 
     def __add__(self, other: 'CaseTesting') -> 'CaseTesting':
+        if not isinstance(other, self.__class__):
+            raise TypeError('Must only add to another CaseTesting object.')
+
         if self.date != other.date:
             raise ValueError('Cannot add testing status for different dates.')
 
