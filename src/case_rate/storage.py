@@ -166,6 +166,10 @@ class Storage:
         return self
 
     def __exit__(self, type, value, traceback):
+        self.close()
+
+    def close(self):
+        '''Close the connection to the SQLite database.'''
         self._conn.close()
 
     @property
