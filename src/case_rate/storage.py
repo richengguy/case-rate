@@ -47,6 +47,10 @@ class CaseTesting(NamedTuple):
 class InputSource(abc.ABC):
     '''Defines an object that case provide data to the storage backend.
 
+    A subclass must define the attribute.  It can also implement :meth:`cases`
+    or :meth:`testing` depending on what information the report presents.  The
+    default implementations do nothing.
+
     Attributes
     ----------
     name : str
@@ -68,7 +72,6 @@ class InputSource(abc.ABC):
     def url(self) -> str:
         pass
 
-    @abc.abstractmethod
     def cases(self) -> Generator[Cases, None, None]:
         '''The number of COVID-19 cases and their current status.
 
@@ -78,8 +81,8 @@ class InputSource(abc.ABC):
             A named tuple containing the date and the number of confirmed,
             resolved and deceased cases.
         '''
+        return []
 
-    @abc.abstractmethod
     def testing(self) -> Generator[CaseTesting, None, None]:
         '''The number of COVID-19 tests (completed and in-progress).
 
@@ -89,6 +92,7 @@ class InputSource(abc.ABC):
             A named tuple containing the date and the number of completed and
             in-progress tests.
         '''
+        return []
 
 
 class Storage:
