@@ -135,7 +135,8 @@ class JHUCSSESource(InputSource):
     '''
     DEFAULT_REPO = 'https://github.com/CSSEGISandData/COVID-19'
 
-    def __init__(self, path: PathLike, repo: Optional[str] = None):
+    def __init__(self, path: PathLike, repo: Optional[str] = None,
+                 update: bool = True):
         '''
         Parameters
         ----------
@@ -143,20 +144,25 @@ class JHUCSSESource(InputSource):
             path to where the repo will be locally stored
         repo : str, optional
             URL to COVID-19 report, will default to the GitHub repository
+        update : bool, optional
+            set to `True` to automatically run ``git pull`` on the GitHub
+            repo do an update
         '''
         if repo is None:
             repo = JHUCSSESource.DEFAULT_REPO
 
         path = pathlib.Path(path)
-        if not path.exists():
-            click.echo(f'Cloning "{repo}" to "{path}".')
-            stdout, stderr = _git('clone', repo, path.as_posix())
-        else:
+        if path.exists() and update:
             click.echo(f'Updating JHU-CSSE COVID-19 dataset at "{path}".')
             stdout, stderr = _git('pull', cwd=path)
+        else:
+            click.echo(f'Cloning "{repo}" to "{path}".')
+            stdout, stderr = _git('clone', repo, path.as_posix())
 
-        click.secho('stdout', fg='green', bold=True)
-        click.echo(stdout)
+        if len(stdout) != 0:
+            click.secho('stdout', fg='green', bold=True)
+            click.echo(stdout)
+
         if len(stderr) != 0:
             click.secho('stderr', fg='red', bold=True)
             click.echo(stderr)
