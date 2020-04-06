@@ -151,10 +151,14 @@ class JHUCSSESource(InputSource):
         if repo is None:
             repo = JHUCSSESource.DEFAULT_REPO
 
+        stdout = ''
+        stderr = ''
+
         path = pathlib.Path(path)
-        if path.exists() and update:
-            click.echo(f'Updating JHU-CSSE COVID-19 dataset at "{path}".')
-            stdout, stderr = _git('pull', cwd=path)
+        if path.exists():
+            if update:
+                click.echo(f'Updating JHU-CSSE COVID-19 dataset at "{path}".')
+                stdout, stderr = _git('pull', cwd=path)
         else:
             click.echo(f'Cloning "{repo}" to "{path}".')
             stdout, stderr = _git('clone', repo, path.as_posix())

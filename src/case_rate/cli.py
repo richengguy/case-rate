@@ -9,6 +9,10 @@ from case_rate.dashboard import Dashboard, OutputType
 from case_rate.dataset import DataSource
 from case_rate.timeseries import TimeSeries
 
+from case_rate import filters
+from case_rate.storage import Storage
+from case_rate.sources.jhu_csse import JHUCSSESource
+
 
 def preamble(ctx: click.Context):
     '''Print the command preamble.'''
@@ -123,32 +127,35 @@ def info(ctx: click.Context, country: Optional[str], details: bool):
     specified, the particular country.
     '''
     preamble(ctx)
-    dataset = DataSource(ctx.obj['DATASET_PATH'])
-    reports = dataset.cases
+    with Storage() as storage:
+        source = JHUCSSESource(ctx.obj['DATASET_PATH'], update=False)
+        storage.populate(source)
+        cases = storage.cases(source, country=country)
 
-    if country is not None:
-        reports = reports.for_country(country)
+    cases = filters.sum_by_date(cases)
 
     click.secho('Available Reports: ', bold=True, nl=False)
-    click.echo(len(reports))
+    click.echo(len(cases))
 
     if country is not None:
-        click.secho('Country: ', bold=True, nl=False)
-        click.echo(country)
+        click.echo(click.style('Country: ', bold=True) + country)
 
-    click.echo('First: {}-{:02}-{:02}'.format(*(reports.dates[0])))
-    click.echo('  - Confirmed: {}'.format(reports.reports[0].total_confirmed))
-    click.echo('  - Deaths:    {}'.format(reports.reports[0].total_deaths))
-    click.echo('Last:  {}-{:02}-{:02}'.format(*(reports.dates[-1])))
-    click.echo('  - Confirmed: {}'.format(reports.reports[-1].total_confirmed))
-    click.echo('  - Deaths:    {}'.format(reports.reports[-1].total_deaths))
+    click.echo(f'First: {cases[0].date}')
+    click.echo(f'  - Confirmed: {cases[0].confirmed}')
+    click.echo(f'  - Deceased:  {cases[0].deceased}')
+    click.echo(f'Last:  {cases[-1].date}')
+    click.echo(f'  - Confirmed: {cases[-1].confirmed}')
+    click.echo(f'  - Deceased:  {cases[-1].deceased}')
 
     if details:
-        click.secho('Reporting:', bold=True)
-        click.echo('{:>10} {:>10} {:>10}'.format('Date', 'Confirmed', 'Deaths'))  # noqa: E501
-        timeseries = TimeSeries(reports)
-        for date, (confirmed, deaths) in zip(timeseries.dates, timeseries.as_list()):  # noqa: E501
-            click.echo('{:10} {:10} {:10}'.format(str(date), confirmed, deaths))  # noqa: E501
+        click.secho('Reporting: ', bold=True)
+        click.echo('{:>10} {:>10} {:>10}'.format('Date',
+                                                 'Confirmed',
+                                                 'Deaths'))
+        for case in cases:
+            click.echo('{:10} {:10} {:10}'.format(str(case.date),
+                                                  case.confirmed,
+                                                  case.deceased))
 
 
 if __name__ == '__main__':
