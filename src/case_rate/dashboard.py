@@ -1,13 +1,11 @@
 import enum
 import pathlib
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional
 
-from case_rate.dataset import ConfirmedCases
+from case_rate import filters
+from case_rate._types import PathLike, Cases
 from case_rate.report import HTMLReport
 from case_rate.timeseries import TimeSeries
-
-
-_PathLike = Union[str, pathlib.Path]
 
 
 class OutputType(enum.Enum):
@@ -26,7 +24,7 @@ class Dashboard(object):
     detail pages.
     '''
     def __init__(self, mode: OutputType = OutputType.DEFAULT,
-                 output: _PathLike = 'dashboard.html',
+                 output: PathLike = 'dashboard.html',
                  source: Optional[str] = None,
                  confidence: float = 0.95,
                  filter_window: int = 7,
@@ -59,23 +57,24 @@ class Dashboard(object):
         self._min_confirmed = min_confirmed
         self._html = HTMLReport()
 
-    def generate(self, cases: Dict[str, ConfirmedCases]):
+    def generate(self, cases: Dict[str, List[Cases]]):
         '''Generate the HTML dashboard for the given case reports.
 
         Parameters
         ----------
-        cases : Dict[str, ConfirmedCases]
+        cases : dictionary of :class:`Cases` lists
             a dictionary of case reports, keyed by the region names
         '''
-        report: ConfirmedCases
-        filtered = {
-            region: report.filter(min_confirmed=self._min_confirmed)
-            for region, report in cases.items()
-        }
+        def min_confirmed(case: Cases) -> bool:
+            return case.confirmed >= self._min_confirmed
+
+        for region in cases:
+            cases[region] = filters.sum_by_date(cases[region])
 
         timeseries = {
-            region: TimeSeries(reports, **self._analysis_config)
-            for region, reports in filtered.items()
+            name: TimeSeries(filters.select(region, min_confirmed),
+                             **self._analysis_config)
+            for name, region in cases.items()
         }
 
         if self.output_mode == OutputType.DEFAULT:

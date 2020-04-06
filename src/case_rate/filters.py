@@ -1,9 +1,28 @@
 import datetime
 from case_rate.storage import Cases, CaseTesting
-from typing import Dict, List, Union
+from typing import Callable, Dict, List, Union
 
 _Info = Union[Cases, CaseTesting]
 _InfoList = Union[List[Cases], List[CaseTesting]]
+
+
+def select(cases: _InfoList, fn: Callable[[_Info], bool]) -> _InfoList:
+    '''Filters the list of cases based on some criteria.
+
+    Parameters
+    ----------
+    cases : list of either :class:`Cases` or :class:`CaseTesting`
+        list of cases to filter
+    fn : callable ``(Cases) -> bool`` or ``(CaseTesting) -> bool``
+        a functor that can be used to filter the selected cases
+
+    Returns
+    -------
+    list of :class:`Cases` or :class:`CaseTesting`
+        filtered list, with the items sorted by date
+    '''
+    filtered = filter(fn, cases)
+    return sorted(filtered, key=lambda item: item.date)
 
 
 def select_by_country(cases: _InfoList, country: str) -> _InfoList:
@@ -21,11 +40,7 @@ def select_by_country(cases: _InfoList, country: str) -> _InfoList:
     list of :class:`Cases`
         list filtered by country
     '''
-    def select(case: _Info) -> bool:
-        return case.country == country
-
-    filtered = filter(select, cases)
-    return list(filtered)
+    return select(cases, lambda case: case.country == country)
 
 
 def sum_by_date(cases: _InfoList) -> _InfoList:
@@ -33,7 +48,7 @@ def sum_by_date(cases: _InfoList) -> _InfoList:
 
     Parameters
     ----------
-    cases : list of either :class:`Cases` of :class:`CaseTesting`
+    cases : list of either :class:`Cases` or :class:`CaseTesting`
         list of cases to sum
 
     Returns

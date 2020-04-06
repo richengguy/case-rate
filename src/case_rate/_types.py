@@ -3,6 +3,8 @@ import pathlib
 from typing import NamedTuple, Union
 
 __all__ = [
+    'Cases',
+    'CaseTesting',
     'PathLike'
 ]
 

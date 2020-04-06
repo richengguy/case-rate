@@ -1,11 +1,11 @@
-import datetime
 from typing import List, Tuple
 
 import numpy as np
 import scipy.signal
 import scipy.stats
 
-from case_rate.dataset import DailyReport, ConfirmedCases
+from case_rate._types import Cases
+from case_rate import filters
 
 
 class _LeastSq(object):
@@ -113,23 +113,25 @@ class TimeSeries(object):
     deaths: list of ``int``
         number of COVID-19-related deaths
     '''
-    def __init__(self, reports: ConfirmedCases, confidence: float = 0.95,
+    def __init__(self, cases: List[Cases], confidence: float = 0.95,
                  window: int = 7):
         '''
         Parameters
         ----------
-        reports : ReportSet
-            the report set to represent as a time series
+        cases : list of :class:`Cases`
+            list of cases that will turn into a time series
         confidence : float
             requested confidence interval when calculating slopes
         window : int
             filtering window used for slope estimation
         '''
-        daily: DailyReport
-        self.dates = [datetime.date(year, month, day) for year, month, day in reports.dates]  # noqa: E501
+        cases = filters.sum_by_date(cases)
+
+        case: Cases
+        self.dates = [case.date for case in cases]
         self.days = [(date - self.dates[0]).days for date in self.dates]
-        self.confirmed = [daily.total_confirmed for daily in reports.reports]
-        self.deaths = [daily.total_deaths for daily in reports.reports]
+        self.confirmed = [case.confirmed for case in cases]
+        self.deaths = [case.deceased for case in cases]
 
         self._window = window
         self._confidence = confidence

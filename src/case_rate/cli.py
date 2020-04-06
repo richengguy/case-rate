@@ -6,8 +6,6 @@ import click
 
 from case_rate import VERSION
 from case_rate.dashboard import Dashboard, OutputType
-from case_rate.dataset import DataSource
-from case_rate.timeseries import TimeSeries
 
 from case_rate import filters
 from case_rate.storage import Storage
@@ -53,10 +51,7 @@ def download(ctx: click.Context, repo):
     alternate repo can be specified with the '-r' flag.
     '''
     preamble(ctx)
-    if ctx.obj['DATASET_PATH'].exists():
-        DataSource.update(ctx.obj['DATASET_PATH'])
-    else:
-        DataSource.create(repo, ctx.obj['DATASET_PATH'])
+    JHUCSSESource(ctx.obj['DATASET_PATH'], repo)
 
 
 @main.command()
@@ -86,21 +81,25 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
     '''
     preamble(ctx)
     outpath = pathlib.Path(output).resolve()
-    dataset = DataSource(ctx.obj['DATASET_PATH'])
-    cases = dataset.cases
 
-    click.echo(click.style('Output: ', bold=True) + outpath.as_posix())
-    click.secho('Region(s): ', bold=True, nl=False)
-    if len(countries) == 0:
-        click.echo('World')
-        data = {'World': cases}
-    else:
-        click.echo(', '.join(countries))
-        data = {country: cases.for_country(country) for country in countries}
+    with Storage() as storage:
+        source = JHUCSSESource(ctx.obj['DATASET_PATH'], update=False)
+        github_link = source.url
+        storage.populate(source)
+
+        if len(countries) == 0:
+            click.echo('World')
+            data = {'World': storage.cases(source)}
+        else:
+            click.echo(', '.join(countries))
+            data = {
+                country: storage.cases(source, country=country)
+                for country in countries
+            }
 
     click.secho('Dashboard: ', bold=True, nl=False)
     dashboard = Dashboard(output=outpath,
-                          source=dataset.github_link,
+                          source=github_link,
                           min_confirmed=min_confirmed,
                           filter_window=filter_window)
     if generate_dashboard:
