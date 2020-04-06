@@ -32,7 +32,7 @@ def _download(url: str, filename: pathlib.Path):
         f.write(response.text)
 
     click.echo(click.style('\u2713', fg='green', bold=True) +
-               f'...saved to `{filename}``.')
+               f'...saved to `{filename}`')
 
 
 def _to_date(date: str) -> datetime.date:
