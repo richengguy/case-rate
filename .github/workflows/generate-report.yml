@@ -25,7 +25,6 @@ jobs:
         pip install .
     - name: Generate the nightly report using the latest JHU CSSE data.
       run: |
-        covid19 download
         covid19 report --dashboard --output index.html -c Canada -c US
     - name: Checkout the gh-pages branch in its own folder.
       uses: actions/checkout@v2

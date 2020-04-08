@@ -24,5 +24,4 @@ jobs:
         flake8 . --count --exit-zero --statistics
     - name: Grab latest JHU CSSE COVID-19 dataset
       run: |
-        covid19 download
         covid19 info -c Canada
