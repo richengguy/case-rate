@@ -2,10 +2,10 @@ import enum
 import pathlib
 from typing import Dict, List, Optional
 
-from case_rate import filters
-from case_rate._types import PathLike, Cases
-from case_rate.report import HTMLReport
-from case_rate.timeseries import TimeSeries
+from . import filters
+from ._types import PathLike, Cases
+from .report import HTMLReport, SourceInfo
+from .timeseries import TimeSeries
 
 
 class OutputType(enum.Enum):
@@ -25,7 +25,7 @@ class Dashboard(object):
     '''
     def __init__(self, mode: OutputType = OutputType.DEFAULT,
                  output: PathLike = 'dashboard.html',
-                 source: Optional[str] = None,
+                 sources: Optional[Dict[str, SourceInfo]] = None,
                  confidence: float = 0.95,
                  filter_window: int = 7,
                  min_confirmed: int = 1):
@@ -36,8 +36,8 @@ class Dashboard(object):
             the generated report type, by default OutputType.DEFAULT
         output : Path-like
             name of the dashboard HTML file, by default 'dashboard.html'
-        source : str, optional
-            path to the data's source repository, by default `None`
+        sources : dict of :class:`SourceInfo` objects
+            contains optional data source information, by default `None`
         confidence : float, optional
             the confidence interval percentage, by default 0.95
         filter_window : int, optional
@@ -49,13 +49,12 @@ class Dashboard(object):
         '''
         self.output_mode = mode
         self._output_path = pathlib.Path(output)
-        self._source = source
         self._analysis_config = {
             'confidence': confidence,
             'window': filter_window
         }
         self._min_confirmed = min_confirmed
-        self._html = HTMLReport()
+        self._html = HTMLReport(sources)
 
     def generate(self, cases: Dict[str, List[Cases]]):
         '''Generate the HTML dashboard for the given case reports.
@@ -91,7 +90,7 @@ class Dashboard(object):
             dictionary containing the timeseries for each region
         '''
         with self._output_path.open('w') as f:
-            f.write(self._html.generate_report(timeseries, self._source))
+            f.write(self._html.generate_report(timeseries))
 
     def _dashboard_page(self, timeseries: Dict[str, TimeSeries]):
         '''Generates the dashboard view with regional detail views.
@@ -101,7 +100,7 @@ class Dashboard(object):
         timeseries : Dict[str, TimeSeries]
             dictionary containing the timeseries for each region
         '''
-        overview, details = self._html.generate_overview(timeseries, self._source)  # noqa: E501
+        overview, details = self._html.generate_overview(timeseries)
         with self._output_path.open('w') as f:
             f.write(overview)
 

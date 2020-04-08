@@ -1,1 +1,2 @@
+include config.toml
 recursive-include src/case_rate/templates *

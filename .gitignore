@@ -1,6 +1,6 @@
 # Misc.
 .vscode
-covid19_repo/
+covid19-data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

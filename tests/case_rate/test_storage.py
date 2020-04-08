@@ -5,15 +5,13 @@ from case_rate.storage import (Storage, InputSource, Cases, CaseTesting,
 
 
 class MockedSource(InputSource):
-    @property
-    def name(self):
+    @classmethod
+    def name(cls):
         return 'TestSource'
 
-    @property
     def details(self):
         return 'Input source used to test the Storage class.'
 
-    @property
     def url(self):
         return 'http://127.0.0.1'
 
@@ -38,15 +36,13 @@ class MockedSource(InputSource):
 
 
 class CaseOnlySource(InputSource):
-    @property
-    def name(self):
+    @classmethod
+    def name(cls):
         return 'CaseOnlySource'
 
-    @property
     def details(self):
         return 'Input source with only cases, no testing data.'
 
-    @property
     def url(self):
         return 'http://127.0.0.1'
 
@@ -62,15 +58,13 @@ class CaseOnlySource(InputSource):
 
 
 class RegionalSource(InputSource):
-    @property
-    def name(self):
+    @classmethod
+    def name(cls):
         return 'RegionalSource'
 
-    @property
     def details(self):
         return 'Input source with regions.'
 
-    @property
     def url(self):
         return 'http://127.0.0.1'
 
@@ -140,15 +134,20 @@ class TestStorageInternals:
 
 
 class TestStorage:
+    def test_class_name(self):
+        test_source = MockedSource()
+        assert MockedSource.name() == 'TestSource'
+        assert test_source.name() == MockedSource.name()
+
     def test_source_register(self):
         test_source = MockedSource()
         with Storage() as storage:
-            assert storage._get_source(test_source.name) is None
+            assert storage._get_source(test_source.name()) is None
 
             ref = storage._register(test_source)
-            assert ref.name == test_source.name
-            assert ref.details == test_source.details
-            assert ref.url == test_source.url
+            assert ref.name == test_source.name()
+            assert ref.details == test_source.details()
+            assert ref.url == test_source.url()
             assert ref.source_id == 1
 
     def test_populate_full(self):
@@ -158,9 +157,9 @@ class TestStorage:
             storage.populate(test_source)
 
             sources = storage.sources
-            assert test_source.name in sources
-            assert sources[test_source.name][0] == test_source.details
-            assert sources[test_source.name][1] == test_source.url
+            assert test_source.name() in sources
+            assert sources[test_source.name()][0] == test_source.details()
+            assert sources[test_source.name()][1] == test_source.url()
 
             cases = storage.cases('TestSource')
             assert len(cases) == 1

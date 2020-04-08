@@ -154,7 +154,7 @@ class JHUCSSESource(InputSource):
         stdout = ''
         stderr = ''
 
-        path = pathlib.Path(path)
+        path = pathlib.Path(path) / "COVID-19"
         if path.exists():
             if update:
                 click.echo(f'Updating JHU-CSSE COVID-19 dataset at "{path}".')
@@ -174,16 +174,15 @@ class JHUCSSESource(InputSource):
         self._path = path
         self._url = _get_github_link(path)
 
-    @property
-    def name(self):
+    @classmethod
+    def name(cls) -> str:
         return "jhu-csse"
 
-    @property
-    def details(self):
+    @classmethod
+    def details(cls) -> str:
         return "JHU-CSSE COVID-19 Report"
 
-    @property
-    def url(self):
+    def url(self) -> str:
         return self._url
 
     def cases(self) -> Generator[Cases, None, None]:

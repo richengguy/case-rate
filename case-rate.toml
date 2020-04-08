@@ -1,0 +1,12 @@
+[case-rate]
+database = ":memory:"
+storage = "./covid19-data"
+
+# COVID-19 report produced by John Hopkin's University.
+[sources.jhu-csse]
+repo = "https://github.com/CSSEGISandData/COVID-19"
+
+# COVID-19 data from the Public Health Agency of Canada
+[sources.phac]
+url = "https://health-infobase.canada.ca/src/data/covidLive/covid19.csv"
+info = "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1"
