@@ -154,7 +154,7 @@ class JHUCSSESource(InputSource):
         stdout = ''
         stderr = ''
 
-        path = pathlib.Path(path)
+        path = pathlib.Path(path) / "COVID-19"
         if path.exists():
             if update:
                 click.echo(f'Updating JHU-CSSE COVID-19 dataset at "{path}".')

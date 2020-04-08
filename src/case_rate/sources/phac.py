@@ -65,7 +65,7 @@ class PHACSource(InputSource):
     INFO_PAGE = 'https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1'  # noqa: E501
 
     def __init__(self, path: PathLike, url: Optional[str] = None,
-                 update: bool = True):
+                 info: Optional[str] = None, update: bool = True):
         '''
         Parameters
         ----------
@@ -74,13 +74,21 @@ class PHACSource(InputSource):
         url : str, optional
             the URL to the Government of Canada's COVID-19 report; if not
             provided then it uses the default link
+        info : str optional
+            the URL to the main information path (not the CSV file); not
+            provided then it uses the default link
         update : bool, optional
             if ``True`` then updates an existing CSV file to the latest version
         '''
         if url is None:
             url = PHACSource.CSV_URL
 
-        path = pathlib.Path(path)
+        if info is None:
+            self._info = PHACSource.INFO_PAGE
+        else:
+            self._info = info
+
+        path = pathlib.Path(path) / 'covid19.csv'
         if path.exists():
             if update:
                 click.echo('Updating PHAC COVID-19 report.')
@@ -100,7 +108,7 @@ class PHACSource(InputSource):
         return 'Public Health Agency of Canada - Current Situation'
 
     def url(self) -> str:
-        return PHACSource.INFO_PAGE
+        return self._info
 
     def cases(self) -> Generator[Cases, None, None]:
         with self._path.open() as f:

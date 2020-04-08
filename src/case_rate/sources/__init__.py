@@ -1,3 +1,4 @@
+import pathlib
 from typing import Optional
 
 from .jhu_csse import JHUCSSESource
@@ -5,14 +6,21 @@ from .phac import PHACSource
 
 from ..storage import InputSource
 
+__all__ = [
+    'DATA_SOURCES',
+    'init_source',
+    'select_source'
+]
+
+
 DATA_SOURCES = {
     (None, None): JHUCSSESource,    # Default source
     ('Canada', None): PHACSource    # Canada-specific source
 }
 
 
-def get_source(region: Optional[str] = None,
-               sources=DATA_SOURCES) -> InputSource:
+def select_source(region: Optional[str] = None,
+                  sources=DATA_SOURCES) -> InputSource:
     '''Select a data source to use for COVID-19 data.
 
     The source selector uses a simple string format to obtain the input data
@@ -71,3 +79,47 @@ def get_source(region: Optional[str] = None,
 
     # No matches; return default.
     return sources[default]
+
+
+def init_source(path, update, region: Optional[str] = None, params: dict = {},
+                sources=DATA_SOURCES) -> InputSource:
+    '''Initialize a new :class:`InputSource` object.
+
+    This will select the input source and then create a new instance of it.
+    The ``path`` and ``update`` arguments are used to indicate the input
+    sources working directory and whether or not it should attempt to update
+    itself.  The function takes care of creating the appropriate working
+    directory before the initialization happens.
+
+    An optional dictionary, ``params`` can be used to set any extra input
+    arguments for the input sources.  The dictionary key must be the input
+    source name.
+
+    Parameters
+    ----------
+    path : path-like object
+        working directory used to store the input source's data
+    update : bool
+        if ``True`` then the data source should also try to update itself
+    region : str, optional
+        a region string of the form ``country:province``, by default None
+    params : dict, optional
+        dictionary with any extra parameters that are needed by the input
+        sources, by default {}
+    sources : dict, optional
+        a dictionary containing the sources to query; a default set is provided
+        but can be modified if necessary
+
+    Returns
+    -------
+    :class:`InputSource`
+        the initialized input source
+    '''
+    SourceCls = select_source(region, sources)
+
+    working_path: pathlib.Path = pathlib.Path(path) / SourceCls.name()
+    if not working_path.exists():
+        working_path.mkdir(parents=True, exist_ok=False)
+
+    return SourceCls(path=working_path, update=update,
+                     **params[SourceCls.name()])
