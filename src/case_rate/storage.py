@@ -69,29 +69,52 @@ sqlite3.register_converter('timestamp', _convert_date)
 class InputSource(abc.ABC):
     '''Defines an object that case provide data to the storage backend.
 
-    A subclass must define the attribute.  It can also implement :meth:`cases`
-    or :meth:`testing` depending on what information the report presents.  The
-    default implementations do nothing.
-
-    Attributes
-    ----------
-    name : str
-        a unique identifier for the input source
-    details : str
-        a more friendly description when displaying the source information
-    url : str
-        a URL to the source location
+    A subclass must define the class methods and the :meth:`url` method.  It
+    can also implement :meth:`cases` or :meth:`testing` depending on what
+    information the report presents.  The default implementations do nothing.
     '''
-    @abc.abstractproperty
-    def name(self) -> str:
+    @classmethod
+    @abc.abstractmethod
+    def name(cls) -> str:
+        '''A unique identifier for the input source.
+
+        The name is a class method that can be used to get a unique, class-wide
+        identifier for the input source.
+
+        Returns
+        -------
+        str
+            the unique string identifier
+        '''
         pass
 
-    @abc.abstractproperty
-    def details(self) -> str:
+    @classmethod
+    @abc.abstractmethod
+    def details(cls) -> str:
+        '''A description about the input source.
+
+        This is meant to be a more human-friendly description of the input
+        source.  It is not used for identification like :meth:`name`.
+
+        Returns
+        -------
+        str
+            details about the input sources
+        '''
         pass
 
-    @abc.abstractproperty
+    @abc.abstractmethod
     def url(self) -> str:
+        '''A URL where the original source data can be found.
+
+        This is expected to be updated whenever the a class instance is
+        initialized.
+
+        Returns
+        -------
+        str
+            the source URL
+        '''
         pass
 
     def cases(self) -> Generator[Cases, None, None]:
@@ -221,7 +244,7 @@ class Storage:
             cursor = self._conn.cursor()
 
             # Check if the source exists and if not, register it.
-            ref = self._get_source(source.name)
+            ref = self._get_source(source)
             if ref is None:
                 ref = self._register(source)
 
@@ -341,7 +364,7 @@ class Storage:
         _Source or ``None``
             the input source; will be ``None`` if it's not in the database
         '''
-        name = source.name if isinstance(source, InputSource) else source
+        name = source.name() if isinstance(source, InputSource) else source
         with self._conn:
             cursor = self._conn.cursor()
             row = cursor.execute(
@@ -371,9 +394,9 @@ class Storage:
             cursor = self._conn.cursor()
             cursor.execute(
                 'INSERT INTO sources (name, details, url) VALUES (?,?,?)',
-                (source.name, source.details, source.url))
+                (source.name(), source.details(), source.url()))
 
-        ref = self._get_source(source.name)
+        ref = self._get_source(source)
         if ref is None:
             raise Storage.Error('Failed to register source with the backend.')
 

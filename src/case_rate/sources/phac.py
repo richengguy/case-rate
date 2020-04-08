@@ -91,15 +91,14 @@ class PHACSource(InputSource):
 
         self._path = path
 
-    @property
-    def name(self) -> str:
+    @classmethod
+    def name(cls) -> str:
         return 'phac'
 
-    @property
-    def details(self) -> str:
+    @classmethod
+    def details(cls) -> str:
         return 'Public Health Agency of Canada - Current Situation'
 
-    @property
     def url(self) -> str:
         return PHACSource.INFO_PAGE
 
