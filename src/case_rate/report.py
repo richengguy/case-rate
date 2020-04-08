@@ -1,6 +1,6 @@
 from collections import OrderedDict
 import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, NamedTuple
 
 import bokeh.embed
 import bokeh.plotting
@@ -8,29 +8,39 @@ import bokeh.resources
 import jinja2
 import numpy as np
 
-from case_rate import VERSION
-from case_rate.timeseries import TimeSeries
-from case_rate.plotting import Plotter
+from . import VERSION
+from .plotting import Plotter
+from .timeseries import TimeSeries
+
+
+class SourceInfo(NamedTuple):
+    '''Used to specify information about where the data came from.'''
+    description: str
+    url: str
 
 
 class HTMLReport(object):
     '''Generate a report page for the current time series data.'''
-    def __init__(self):
+    def __init__(self, sources: Optional[Dict[str, SourceInfo]] = None):
+        '''
+        Parameters
+        ----------
+        sources : dict of :class:`SourceInfo`
+            dictionary of tuples with available data sources
+        '''
+        self._sources = sources.copy()
         self._env = jinja2.Environment(
             loader=jinja2.PackageLoader(__package__, 'templates'),
             autoescape=jinja2.select_autoescape(['html'])
         )
 
-    def generate_report(self, data: Dict[str, TimeSeries],
-                        source: Optional[str] = None) -> str:
+    def generate_report(self, data: Dict[str, TimeSeries]) -> str:
         '''Generate an HTML report for the provided time series.
 
         Parameters
         ----------
         data : Dict[str, TimeSeries]
             a dictionary containing the time series data for each region
-        source : str, optional
-            an optional string that contains the URL to the source repo
 
         Returns
         -------
@@ -54,22 +64,19 @@ class HTMLReport(object):
 
         template = self._env.get_template('report.html')
         return template.render(date=datetime.date.today(),
-                               source=source,
+                               sources=self._sources,
                                regions=list(data.keys()),
                                bokeh_resources=resources,
                                bokeh_scripts=script,
                                bokeh_plots=div)
 
-    def generate_overview(self, data: Dict[str, TimeSeries],
-                          source: Optional[str] = None) -> str:
+    def generate_overview(self, data: Dict[str, TimeSeries]) -> str:
         '''Generates an HTML overview report for the provided time series.
 
         Parameters
         ----------
         data : Dict[str, TimeSeries]
             a dictionary containing the time series data for each region
-        source : str, optional
-            an optional string that contains the URL to the source repo
 
         Returns
         -------
@@ -115,9 +122,12 @@ class HTMLReport(object):
         resources = bokeh.resources.CDN.render()
         script, div = bokeh.embed.components(plots)
 
+        unique_sources = set(info for info in self._sources.values())
+        unique_sources = sorted(unique_sources, key=lambda x: x.description)
+
         template = self._env.get_template('overview.html')
         overview = template.render(date=datetime.date.today(),
-                                   source=source,
+                                   unique_sources=unique_sources,
                                    new_cases=div,
                                    stats=stats,
                                    bokeh_resources=resources,

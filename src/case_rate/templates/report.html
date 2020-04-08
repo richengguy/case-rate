@@ -19,8 +19,14 @@
                 {% else %}
                 <li>Regions: {{ regions | join(', ') }}</li>
                 {% endif %}
-                {% if source is not none %}
-                <li>Source: <a href="{{ source }}">JHU CSSE GitHub Repo</a></li>
+                {% if sources is not none %}
+                <li>Sources:
+                <ul>
+                    {% for country, info in sources.items() %}
+                    <li><strong>{{ country }}</strong>: <a href="{{ info.url }}">{{ info.description }}</a></li>
+                    {% endfor %}
+                </ul>
+                </li>
                 {% endif %}
             </ul>
 

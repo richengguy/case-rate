@@ -3,55 +3,78 @@ from typing import Optional, Tuple
 import webbrowser
 
 import click
+import toml
 
-from case_rate import VERSION
-from case_rate.dashboard import Dashboard, OutputType
-
-from case_rate import filters
-from case_rate.storage import Storage
-from case_rate.sources.jhu_csse import JHUCSSESource
-
-
-def preamble(ctx: click.Context):
-    '''Print the command preamble.'''
-    click.secho(f'COVID-19 Case Rates (v{VERSION})', bold=True)
-    click.secho('--', bold=True)
-    click.secho('Dataset Path: ', bold=True, nl=False)
-    click.echo(ctx.obj['DATASET_PATH'])
+from . import filters, sources, VERSION
+from .dashboard import Dashboard, OutputType
+from .report import SourceInfo
+from .storage import Storage
 
 
 @click.group()
-@click.option('-d', '--dataset',
-              type=click.Path(file_okay=False, dir_okay=True),
-              help='Dataset storage path.',
-              default='./covid19_repo', show_default=True)
+@click.option('-c', '--config', 'config_path', default='case-rate.toml',
+              type=click.Path(file_okay=True, dir_okay=False, exists=True),
+              help='configuration file', show_default=True)
 @click.pass_context
-def main(ctx: click.Context, dataset):
+def main(ctx: click.Context, config_path):
     '''Process case rate data for COVID-19.'''
+    config_path = pathlib.Path(config_path)
+    with config_path.open() as f:
+        config = toml.load(f)
+
+    # Ensure there's a place to store downloaded data.
+    storage = pathlib.Path(config['case-rate']['storage'])
+    if not storage.exists():
+        storage.mkdir(parents=True)
+
+    # Prepare the context sent to the subcommands.
     ctx.ensure_object(dict)
-    ctx.obj['DATASET_PATH'] = pathlib.Path(dataset)
+    ctx.obj['storage'] = storage
+    ctx.obj['database'] = config['case-rate']['database']
+    ctx.obj['sources'] = config['sources']
+
+    # Print the preamble (common to all commands).
+    click.secho(f'COVID-19 Case Rates (v{VERSION})', bold=True)
+    click.secho('--', bold=True)
 
 
-@main.command()
-@click.option('-r', '--repo', type=click.STRING, metavar='GIT_URL',
-              help='Path to the CSSE COVID-19 repo.',
-              default='https://github.com/CSSEGISandData/COVID-19.git',
-              show_default=True)
-@click.pass_context
-def download(ctx: click.Context, repo):
-    '''Download the latest COVID-19 data from the JHU CSSE repository.
+@main.command('sources')
+@click.argument('action', type=click.Choice(['list', 'update']))
+@click.pass_obj
+def manage_sources(config: dict, action: str):
+    '''Perform simple management operations on the input data sources.
 
-    This will do one of two things:
+    The two main actions are:
 
-        1) Clone the COVID-19 repo if it does not yet exist; or
+    'list'   - display all of the available data sources
 
-        2) Check out the latest 'master'.
-
-    By default, it accesses the 'CSSEGISandData/COVID-19' GitHub repo.  An
-    alternate repo can be specified with the '-r' flag.
+    'update' - batch update all of the data sources
     '''
-    preamble(ctx)
-    JHUCSSESource(ctx.obj['DATASET_PATH'], repo)
+    def to_selector(country, region):
+        if region is None:
+            if country is None:
+                return None
+            else:
+                return country
+        else:
+            return ':'.join((country, region))
+
+    regions = {key: to_selector(*key) for key in sources.DATA_SOURCES.keys()}
+
+    if action == 'list':
+        click.secho('Available Sources:', bold=True)
+    elif action == 'update':
+        click.secho('Updating Sources: ', bold=True)
+
+    for key, SourceCls in sources.DATA_SOURCES.items():
+        if action == 'list':
+            click.echo(f'  Name: {SourceCls.name()}')
+            click.echo(f'  Description: {SourceCls.details()}')
+        elif action == 'update':
+            click.echo(f'- Updating {SourceCls.name()}')
+            sources.init_source(config['storage'], True, regions[key],
+                                config['sources'])
+        click.echo('  --')
 
 
 @main.command()
@@ -68,8 +91,8 @@ def download(ctx: click.Context, repo):
               help='Do not open up the report in a browser.')
 @click.option('--dashboard', 'generate_dashboard', is_flag=True,
               help='Generate a dashboard rather that overlaying countries.')
-@click.pass_context
-def report(ctx: click.Context, countries: Tuple[str], output: str,
+@click.pass_obj
+def report(config: dict, countries: Tuple[str], output: str,
            min_confirmed: int, filter_window: int, no_browser: bool,
            generate_dashboard: bool):
     '''Generate a daily COVID-19 report.
@@ -79,27 +102,52 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
     aggregate report for all reported world-wide cases into a `report.html`
     file.  It will also open up the report in a browser.
     '''
-    preamble(ctx)
+    click.secho('Generating Report', bold=True)
+    click.secho('Regions: ', bold=True, nl=False)
+
+    if len(countries) == 0:
+        countries = [None]
+        click.echo('World')
+    else:
+        click.echo(click.style('Regions: ', bold=True) + ','.join(countries))
+
+    # Set up the input sources.
+    input_sources = {
+        country: sources.init_source(config['storage'], False, country,
+                                     config['sources'])
+        for country in countries
+    }
+
+    source_info = {
+        country: SourceInfo(description=source.details(), url=source.url())
+        for country, source in input_sources.items()
+    }
+
     outpath = pathlib.Path(output).resolve()
 
+    # Populate the database.
     with Storage() as storage:
-        source = JHUCSSESource(ctx.obj['DATASET_PATH'], update=False)
-        github_link = source.url
-        storage.populate(source)
+        for country in countries:
+            storage.populate(input_sources[country])
 
-        if len(countries) == 0:
-            click.echo('World')
-            data = {'World': storage.cases(source)}
-        else:
-            click.echo(', '.join(countries))
-            data = {
-                country: storage.cases(source, country=country)
-                for country in countries
-            }
+        data = {
+            country: storage.cases(input_sources[country], country=country)
+            for country in countries
+        }
 
+    # Ensure `None` maps to `World` in the dashboard.
+    if None in data:
+        data['World'] = data[None]
+        del data[None]
+
+    if None in source_info:
+        source_info['World'] = source_info[None]
+        del source_info[None]
+
+    # Generate the report and/or dashboard.
     click.secho('Dashboard: ', bold=True, nl=False)
     dashboard = Dashboard(output=outpath,
-                          source=github_link,
+                          sources=source_info,
                           min_confirmed=min_confirmed,
                           filter_window=filter_window)
     if generate_dashboard:
@@ -118,23 +166,24 @@ def report(ctx: click.Context, countries: Tuple[str], output: str,
 @click.option('-c', '--country', nargs=1,
               help='Select reports for a single country.')
 @click.option('--details', is_flag=True, help='Show the full report table.')
-@click.pass_context
-def info(ctx: click.Context, country: Optional[str], details: bool):
+@click.pass_obj
+def info(config: dict, country: Optional[str], details: bool):
     '''Get information about the contents of the COVID-19 data set.
 
     This will produce some general informattion about the data set or, if
     specified, the particular country.
     '''
-    preamble(ctx)
+    input_source = sources.init_source(config['storage'], False, country,
+                                       config['sources'])
+
     with Storage() as storage:
-        source = JHUCSSESource(ctx.obj['DATASET_PATH'], update=False)
-        storage.populate(source)
-        cases = storage.cases(source, country=country)
+        storage.populate(input_source)
+        cases = storage.cases(input_source, country=country)
 
     cases = filters.sum_by_date(cases)
 
-    click.secho('Available Reports: ', bold=True, nl=False)
-    click.echo(len(cases))
+    click.echo(click.style('Input Source: ', bold=True) + input_source.details())  # noqa: E501
+    click.echo(click.style('Available Reports: ', bold=True) + str(len(cases)))
 
     if country is not None:
         click.echo(click.style('Country: ', bold=True) + country)

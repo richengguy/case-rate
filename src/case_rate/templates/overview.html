@@ -15,7 +15,14 @@
             <ul class="list-unstyled">
                 <li>Date Generated: {{ date }}</li>
                 <li>case-rate Version: {{ VERSION }}</li>
-                {% if source is not none %}
+                {% if unique_sources is not none %}
+                <li>Sources:
+                    <ul>
+                    {% for source in unique_sources %}
+                        <li><a href="{{ source.url }}">{{ source.description }}</a></li>
+                    {% endfor %}
+                    </ul>
+                </li>
                 <li>Source: <a href="{{ source }}">JHU CSSE GitHub Repo</a></li>
                 {% endif %}
             </ul>

@@ -2,7 +2,6 @@
 database = ":memory:"
 storage = "./covid19-data"
 
-[sources]
 # COVID-19 report produced by John Hopkin's University.
 [sources.jhu-csse]
 repo = "https://github.com/CSSEGISandData/COVID-19"
