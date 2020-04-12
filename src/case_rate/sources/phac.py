@@ -52,6 +52,33 @@ def _to_date(date: str) -> datetime.date:
     return dt.date()
 
 
+def _to_int(number: str) -> int:
+    '''Converts a numerical string into an integer.
+
+    This performs an extra check to see if the input string is ``''``.  This is
+    then treated as a zero.  Anything else will result in a ``ValueError``.
+
+    Parameters
+    ----------
+    number : str
+        input string as a number
+
+    Returns
+    -------
+    int
+        the string's integer value
+
+    Throws
+    ------
+    :exc:`ValueError`
+        if the string is not actually a number
+    '''
+    if len(number) == 0:
+        return 0
+
+    return int(number)
+
+
 class PHACSource(InputSource):
     '''Uses reporting data published by the PHAC.
 
@@ -121,9 +148,9 @@ class PHACSource(InputSource):
                     date=_to_date(entry['date']),
                     province=entry['prname'],
                     country='Canada',
-                    confirmed=int(entry['numtotal']),
+                    confirmed=_to_int(entry['numtotal']),
                     resolved=-1,
-                    deceased=int(entry['numdeaths'])
+                    deceased=_to_int(entry['numdeaths'])
                 )
 
     def testing(self) -> Generator[CaseTesting, None, None]:
@@ -133,15 +160,10 @@ class PHACSource(InputSource):
                 if entry['prname'] == 'Canada':
                     continue
 
-                if len(entry['numtested']) == 0:
-                    tested = 0
-                else:
-                    tested = int(entry['numtested'])
-
                 yield CaseTesting(
                     date=_to_date(entry['date']),
                     province=entry['prname'],
                     country='Canada',
-                    tested=tested,
+                    tested=_to_int(entry['numtested']),
                     under_investigation=-1
                 )
