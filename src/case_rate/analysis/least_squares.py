@@ -18,12 +18,93 @@ def _prep_array(array: np.ndarray) -> np.ndarray:
     return array.copy()
 
 
+def derivative(b: np.ndarray) -> np.ndarray:
+    '''Compute the derivative of a polynomial.
+
+    Computing the derivative of a polynomial, given it's weights, is
+    straightforward due to the fact that
+
+    ..math::
+
+        \\frac{d}{dx}x^n = n x^{n-1}.
+
+    Therefore, given a polynomial of the form
+
+    ..math::
+        x(t) = b_0 + \\sum_{i=1}^k b_i t^i,
+
+    then its derivative is
+
+    ..math::
+
+        \\frac{x(t)}{dt} = \\sum_{i=1}^{k} i b_i t^{i-1}.
+
+    Parameters
+    ----------
+    b : np.ndarray
+        a ``k``-length vector containing the input polynomial
+
+    Returns
+    -------
+    np.ndarray
+        a ``k-1``-length vector with the updated weights for the polynomial's
+        derivative
+    '''
+    if b.ndim == 1:
+        b = b[:, np.newaxis]
+    return b[1:, 0] * np.arange(1, b.shape[0])
+
+
+def evalpoly(b: np.ndarray, t: np.ndarray) -> np.ndarray:
+    '''Evaluates a polynomial for the given weights and times.
+
+    The polynomial being evaluated takes the form
+
+    ..math::
+
+        x(t) = b_0 + \\sum_{i=1}^{k} b_i t^i,
+
+    where :math:`k` is the polynomial order.
+
+    Parameters
+    ----------
+    b : np.ndarray
+        an array containing the weights of a k-th order polynomial
+    t : np.ndarray
+        a vector of times to evaluate the polynomal at
+
+    Returns
+    -------
+    np.ndarray
+        another vector, same size as ``t``, with the values of the evaluated
+        polynomial
+    '''
+    n = np.arange(b.shape[0])
+    tn = np.vstack(list(np.power(ti, n) for ti in t))
+    return tn @ b
+
+
 class LeastSquares:
     '''Compute a least-squares line fit to some data.
 
     This implements a simple curve fitting proceduring using ordinary least
     squares.  It allows for estimating the slope of a theoretical curve given
-    noisy data.
+    noisy data.  Given a polynomial of the form
+
+    ..math::
+
+        x(t) = b_0 + \\sum_{i=1}^{k}b_i t^i,
+
+    the regression will find the values of
+    :math:`\\vec{b} = \\begin{bmatrix}b_0 & b_1 & \\dots & b_k\\end{bmatrix}^T`
+    such that the error
+
+    ..math::
+
+        E = \\sum_j \\left\\{ y_j - x(t_j) \\right\\}^2,
+
+    where  :math:``\\vec{y} = \\begin{bmatrix} y_0 & y_1 & \\dots & y_{N-1} \\end{bmatrix}`,
+    is minimized.
 
     Attributes
     ----------
@@ -33,7 +114,7 @@ class LeastSquares:
         the model's root-mean-squared error
     noise_variance : float
         an estimate of the noise variance, calculated from the model residuals
-    '''
+    '''  # noqa: E501
     def __init__(self, times: np.ndarray, values: np.ndarray, order: int = 1):
         '''
         Parameters
@@ -67,15 +148,19 @@ class LeastSquares:
         for j in range(K):
             X[:, j] = X[:, j]**j
 
+        print(X)
+        print(X.transpose() @ X)
+
         # Compute the weights using the normal equations.
         self._weights = np.linalg.pinv(X) @ y
 
         # Compute the confidence of fit.
         residuals = (y - X @ self._weights)**2
+        ssr = residuals.sum()
         covar = np.linalg.inv(X.transpose() @ X)
 
-        self._rmse = np.sqrt(residuals.sum()/N)
-        self._noise = np.sum(residuals*residuals) / (N - K - 1)
+        self._rmse = np.sqrt(ssr/N)
+        self._noise = ssr / (N - K)
         self._variances = np.diag(covar) * self._noise
         self._dof = N - K
 
@@ -113,14 +198,15 @@ class LeastSquares:
             a :math:`K \\times 1` array with the confidence value
         '''
         c = scipy.stats.t.ppf((1 + alpha)/2, self._dof)
-        return c*np.sqrt(self._variances)
+        ci = c*np.sqrt(self._variances)
+        return ci[:, np.newaxis]
 
-    def value(self, time: float) -> float:
+    def value(self, time: np.ndarray) -> np.ndarray:
         '''Obtain the value from the least-squares regressor.
 
         Parameters
         ----------
-        time : float
+        time : np.ndarray or float
             the input time
 
         Returns
@@ -128,6 +214,36 @@ class LeastSquares:
         float
             function value at the specified time
         '''
-        n = np.arange(self._weights.shape[0])
-        t = np.power(time, n)
-        return t[np.newaxis, :] @ self._weights
+        if isinstance(time, (float, int)):
+            time = np.array([time])
+        return evalpoly(self._weights, time)
+
+    def slope(self, time: np.ndarray) -> np.ndarray:
+        '''Compute the derivative at time 't'.
+
+        This computation is straightfoward as the derivative of polynomial
+        curve is easy to derive from its weights.  If the input polynomal is
+
+        ..math::
+            x(t) = b_0 + \\sum_{i=1}^k b_i t^i,
+
+        then the derivative is
+
+        ..math::
+
+            \\frac{x(t)}{dt} = \\sum_{i=1}^{k} i b_i t^{i-1}.
+
+        Parameters
+        ----------
+        time : np.ndarray or float
+            the input times
+
+        Returns
+        -------
+        np.ndarray
+            the value of the first derivative evaluated at the specified times
+        '''
+        if isinstance(time, (float, int)):
+            time = np.array([time])
+        weights = self._weights[1:, 0] * np.arange(1, self._weights.shape[0])
+        return evalpoly(weights, time)
