@@ -134,8 +134,8 @@ class LeastSquares:
             raise ValueError('Input data must have same size.')
 
         if values.shape[0] <= order + 1:
-            raise ValueError('Number of samples must be greater tha one plus '
-                             'polynomial order.')
+            raise ValueError('Number of samples must be greater than one plus '
+                             'the polynomial order.')
 
         # Matrix sizes.
         N = values.shape[0]
@@ -147,9 +147,6 @@ class LeastSquares:
 
         for j in range(K):
             X[:, j] = X[:, j]**j
-
-        print(X)
-        print(X.transpose() @ X)
 
         # Compute the weights using the normal equations.
         self._weights = np.linalg.pinv(X) @ y
@@ -180,11 +177,11 @@ class LeastSquares:
     def weight_variance(self) -> float:
         return self._variances
 
-    def confidence_interval(self, alpha: float = 0.95) -> np.ndarray:
-        '''Compute the confidence interval on the least squares solution.
+    def confidence(self, alpha: float = 0.95) -> np.ndarray:
+        '''Compute the confidence on the least squares solution.
 
-        The confidence interval is found using the two-sided student's t-test.
-        The upper and lower limits for the confidence interval can be found by
+        The confidence value is found using the two-sided student's t-test. The
+        upper and lower limits for the confidence interval can be found by
         adding this value to the computed weights.
 
         Parameters
