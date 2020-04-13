@@ -3,6 +3,7 @@ from typing import List, Union
 
 import numpy as np
 
+from .least_squares import LeastSquares
 from .. import filters
 from .._types import Cases, CaseTesting
 
@@ -90,5 +91,22 @@ class TimeSeries:
         Returns
         -------
         numpy.ndarray
-            a :math:`2 \\times N`` array containing the slope and
+            a :math:`3 \\times N`` array containing the slope and 95%
+            confidence interval
         '''
+        if log_domain:
+            x = np.log10(self._samples)
+        else:
+            x = self._samples
+
+        if window < 3:
+            raise ValueError('Window size must be at least three days.')
+
+        N = len(self)
+        for i in range(N):
+            i_min = max(0, i - window // 2)
+            i_max = min(N - 1, i + window // 2) + 1
+
+            ls = LeastSquares(np.arange(i_min, i_max), x[i_min:i_max], order=2)
+
+            # TODO: Complete this
