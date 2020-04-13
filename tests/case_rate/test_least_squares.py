@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from case_rate.analysis.least_squares import LeastSquares
+from case_rate.analysis.least_squares import LeastSquares, derivative
 
 
 class TestLeastSquares:
@@ -37,3 +37,11 @@ class TestLeastSquares:
         x = 0.5*t + 1
         with pytest.raises(ValueError):
             LeastSquares(t, x[0:3])
+
+    def test_derivative(self):
+        b = np.array([0.5, 0.3, 2])
+
+        db = derivative(b)
+        assert db.shape[0] == 2
+        assert np.isclose(db[0], 0.3)
+        assert np.isclose(db[1], 4)

@@ -245,5 +245,5 @@ class LeastSquares:
         '''
         if isinstance(time, (float, int)):
             time = np.array([time])
-        weights = self._weights[1:, 0] * np.arange(1, self._weights.shape[0])
+        weights = derivative(self._weights)
         return evalpoly(weights, time)
