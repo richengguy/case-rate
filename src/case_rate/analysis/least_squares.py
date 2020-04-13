@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.stats
 
 
 def _prep_array(array: np.ndarray) -> np.ndarray:
@@ -26,6 +27,12 @@ class LeastSquares:
 
     Attributes
     ----------
+    weights : np.ndarray
+        a :math:`K \\times 1` vector with the estimated model weights
+    rmse : float
+        the model's root-mean-squared error
+    noise_variance : float
+        an estimate of the noise variance, calculated from the model residuals
     '''
     def __init__(self, times: np.ndarray, values: np.ndarray, order: int = 1):
         '''
@@ -65,8 +72,12 @@ class LeastSquares:
 
         # Compute the confidence of fit.
         residuals = (y - X @ self._weights)**2
+        covar = np.linalg.inv(X.transpose() @ X)
+
         self._rmse = np.sqrt(residuals.sum()/N)
-        self._variance = np.sum(residuals*residuals) / (N - K - 1)
+        self._noise = np.sum(residuals*residuals) / (N - K - 1)
+        self._variances = np.diag(covar) * self._noise
+        self._dof = N - K
 
     @property
     def weights(self) -> np.ndarray:
@@ -77,8 +88,32 @@ class LeastSquares:
         return self._rmse
 
     @property
-    def variance(self) -> float:
-        return self._variance
+    def noise_variance(self) -> float:
+        return self._noise
+
+    @property
+    def weight_variance(self) -> float:
+        return self._variances
+
+    def confidence_interval(self, alpha: float = 0.95) -> np.ndarray:
+        '''Compute the confidence interval on the least squares solution.
+
+        The confidence interval is found using the two-sided student's t-test.
+        The upper and lower limits for the confidence interval can be found by
+        adding this value to the computed weights.
+
+        Parameters
+        ----------
+        alpha : float, optional
+            the confidence interval, defaults to 0.95 (95%)
+
+        Returns
+        -------
+        np.ndarray
+            a :math:`K \\times 1` array with the confidence value
+        '''
+        c = scipy.stats.t.ppf((1 + alpha)/2, self._dof)
+        return c*np.sqrt(self._variances)
 
     def value(self, time: float) -> float:
         '''Obtain the value from the least-squares regressor.
