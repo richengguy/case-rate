@@ -14,6 +14,7 @@ class TestLeastSquares:
         assert np.isclose(ls.weights[1], 0.5)
         assert np.isclose(ls.value(0.5), 1.25)
         assert np.isclose(ls.slope(0.5), 0.5)
+        assert np.allclose(ls.confidence(), 0)
 
     def test_simple_regression_quadratic(self):
         t = np.arange(10)
@@ -25,6 +26,7 @@ class TestLeastSquares:
         assert np.isclose(ls.weights[2], 2.0)
         assert np.isclose(ls.value(0.5), 1.15)
         assert np.isclose(ls.slope(0.5), 2.3)
+        assert np.allclose(ls.confidence(), 0)
 
     def test_reject_insufficient_samples(self):
         t = np.arange(2)

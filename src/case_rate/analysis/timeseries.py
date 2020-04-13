@@ -77,22 +77,35 @@ class TimeSeries:
             for i in range(self._samples.shape[0])
         ]
 
-    def slope(self, window: int, log_domain: bool) -> np.ndarray:
-        '''Estimate the slope at any given point in the time series.
+    @property
+    def daily_change(self) -> np.ndarray:
+        return np.squeeze(np.pad(np.diff(self._samples), (1, 0)))
+
+    def _local_regression(self, window: int, log_domain: bool,
+                          order: int) -> List[LeastSquares]:
+        '''Performs a series of local least-squares on the time series.
+
+        This performs a series of local ordinary least squares analysis on the
+        time series.  The results can then be used to compute attributes such
+        as the (approximate) derivative or to filter the time series.
 
         Parameters
         ----------
         window : int
-            size of the sliding window used in the slope estimate
+            size of the sliding window, in days, used for the local least
+            squares
         log_domain : bool
-            compute the slope via the log-domain rather than the original
-            domain
+            perform the estimation in the log-domain
+        order : int, optional
+            the order of the polynomial used for the regression; defaults
+            to '1', which assumes the contents of the window are approximately
+            linear
 
         Returns
         -------
-        numpy.ndarray
-            a :math:`3 \\times N`` array containing the slope and 95%
-            confidence interval
+        list of :class:`LeastSquares`
+            a list of :class:`LeastSquares` regression estimates at each
+            element in the time series.
         '''
         if log_domain:
             x = np.log10(self._samples)
@@ -103,9 +116,47 @@ class TimeSeries:
             raise ValueError('Window size must be at least three days.')
 
         N = len(self)
+        least_squares = []
         for i in range(N):
             i_min = max(0, i - window // 2)
             i_max = min(N - 1, i + window // 2) + 1
+            least_squares.append(LeastSquares(np.arange(i_min, i_max),
+                                              x[i_min:i_max],
+                                              order))
+
+        return least_squares
+
+    def smoothed(self, window: int, log_domain: bool,
+                 order: int = 1) -> np.ndarray:
+        '''Return a smoothed version of the time series.
+
+        Parameters
+        ----------
+        window : int
+            size of the sliding window, in days, used for the smoothing
+        log_domain : bool
+            perform the smoothing in the log-domain
+        order : int, optional
+            the order of the polynomial used for the smoothing; defaults
+            to '1', which assumes the contents of the window are approximately
+            linear
+
+        Returns
+        -------
+        np.ndarray
+            a ``N``-length array containing the smoothed time series
+        '''
+        output = np.zeros((len(self),))
+        regressions = self._local_regression(window, log_domain, order)
+
+        ls: LeastSquares
+        for i, ls in enumerate(regressions):
+            output[i] = ls.value(i)
+
+        if log_domain:
+            output = np.power(10, output)
+
+        return output
 
             ls = LeastSquares(np.arange(i_min, i_max), x[i_min:i_max], order=2)
 
