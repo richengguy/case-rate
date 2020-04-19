@@ -61,6 +61,8 @@ def _make_plot(**kwargs) -> bokeh.plotting.Figure:
         plot title
     ylabel : str, optional
         label for the y-axis
+    yrange : ``(min, max)``
+        values that the y-axis should span
     log_plot : bool, optional
         y-axis is represented using a logarithmic scale
 
@@ -80,6 +82,8 @@ def _make_plot(**kwargs) -> bokeh.plotting.Figure:
         plot_args['y_axis_label'] = kwargs['ylabel']
     if 'log_plot' in kwargs and kwargs['log_plot']:
         plot_args['y_axis_type'] = 'log'
+    if 'yrange' in kwargs:
+        plot_args['y_range'] = kwargs['yrange']
 
     return bokeh.plotting.Figure(**plot_args)
 
@@ -252,8 +256,32 @@ class Plotter:
         -------
         bokeh ``Figure``
         '''
-        p = _make_plot(title=title, ylabel='Growth Factor')
+        p = _make_plot(title=title, ylabel='Growth Factor', yrange=(0, 2.5))
 
-        # TODO: Implement growth factor calculation
+        for colour, dates, series in self._data:
+            growth = analysis.growth_factor(series, **self._filter_args)
+
+            data = {
+                'date': dates,
+                'growth_factor': np.squeeze(growth[:, 0]),
+                'upper_ci': np.squeeze(growth[:, 1]),
+                'lower_ci': np.squeeze(growth[:, 2])
+            }
+
+            source = bokeh.models.ColumnDataSource(data)
+
+            # Displays the finite difference and slope estimate.
+            p.line(x='date', y='growth_factor', source=source,
+                   line_color=colour, line_width=2, legend_label=series.label)
+
+            # Displays the confidence interval band.
+            p.add_layout(bokeh.models.Band(
+                base='date', upper='upper_ci', lower='lower_ci', source=source,
+                line_color='grey', line_dash='dashed', line_alpha=1.0,
+                fill_color=colour, fill_alpha=0.2))
+
+        # Displays line where growth is slowing.
+        p.add_layout(bokeh.models.Span(location=1, dimension='width',
+                                       line_dash='dashed', line_color='gray'))
 
         return p

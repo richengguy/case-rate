@@ -7,7 +7,8 @@ from .timeseries import TimeSeries
 __all__ = [
     'smooth',
     'estimate_slope',
-    'percent_change'
+    'percent_change',
+    'growth_factor'
 ]
 
 
@@ -127,3 +128,60 @@ def percent_change(ts: TimeSeries, window: int, order: int = 1,
     # subtracting by one.
     output = np.exp(output) - 1
     return output
+
+
+def growth_factor(ts: TimeSeries, window: int, order: int = 1,
+                  confidence: float = 0.95) -> np.ndarray:
+    '''Estimate the exponential growth factor of the time series.
+
+    Parameters
+    ----------
+    ts: :class:`TimeSeries`
+        time series
+    window : int
+        size of the sliding window, in days
+    order : int, optional
+        the order of the polynomial used for the regression; defaults to '1',
+        which assumes the contents of the window are approximately linear
+    confidence : float, optional
+        the desired confidence interval, which defaults to 95%
+
+    Returns
+    -------
+    numpy.ndarray
+        a :math:`N \\times 3`` array containing the growth factor and 95%
+        confidence interval, e.g. each row is ``(slope, upper_ci,
+        lower_ci)``
+    '''
+    N = len(ts)
+    changes = ts.daily_change
+    output = np.zeros((len(ts), 3))
+    output[:] = np.nan
+
+    if window < 3:
+        raise ValueError('Window size must be at least three days.')
+
+    for i in range(N):
+        i_min = max(0, i - window // 2)
+        i_max = min(N - 1, i + window // 2) + 1
+
+        x = changes[i_min:i_max]
+        t = np.arange(i_min, i_max)
+
+        valid = changes[i_min:i_max] >= 1
+        if valid.sum() < order+2:
+            continue
+
+        x = x[valid]
+        t = t[valid]
+        ls = LeastSquares(t, np.log(x), order)
+
+        weights = ls.weights
+        cv = ls.confidence(confidence)
+        t0 = np.array([i])
+
+        output[i, 0] = evalpoly(derivative(weights), t0)
+        output[i, 1] = evalpoly(derivative(weights + cv), t0)
+        output[i, 2] = evalpoly(derivative(weights - cv), t0)
+
+    return np.exp(output)
