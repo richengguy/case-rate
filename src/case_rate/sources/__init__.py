@@ -121,5 +121,9 @@ def init_source(path, update, region: Optional[str] = None, params: dict = {},
     if not working_path.exists():
         working_path.mkdir(parents=True, exist_ok=False)
 
-    return SourceCls(path=working_path, update=update,
-                     **params[SourceCls.name()])
+    try:
+        options = params[SourceCls.name()]
+    except KeyError:
+        options = {}
+
+    return SourceCls(path=working_path, update=update, **options)

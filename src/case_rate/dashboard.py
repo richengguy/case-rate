@@ -3,9 +3,8 @@ import pathlib
 from typing import Dict, List, Optional
 
 from . import filters
-from ._types import PathLike, Cases
+from ._types import PathLike, Datum
 from .report import HTMLReport, SourceInfo
-from .timeseries import TimeSeries
 
 
 class OutputType(enum.Enum):
@@ -27,7 +26,7 @@ class Dashboard(object):
                  output: PathLike = 'dashboard.html',
                  sources: Optional[Dict[str, SourceInfo]] = None,
                  confidence: float = 0.95,
-                 filter_window: int = 7,
+                 filter_window: int = 11,
                  min_confirmed: int = 1):
         '''
         Parameters
@@ -41,66 +40,55 @@ class Dashboard(object):
         confidence : float, optional
             the confidence interval percentage, by default 0.95
         filter_window : int, optional
-            the size of the sliding window for the least-squares filter; by
-            default 7
+            the size of the sliding window for the least-squares filter, set to
+            '11' by default
         min_confirmed : int, optional
             the minimum number of minimum confirmed cases for the date to be
             included in the report
         '''
         self.output_mode = mode
         self._output_path = pathlib.Path(output)
-        self._analysis_config = {
-            'confidence': confidence,
-            'window': filter_window
-        }
         self._min_confirmed = min_confirmed
+        self._confidence = confidence
+        self._filter_window = filter_window
         self._html = HTMLReport(sources)
 
-    def generate(self, cases: Dict[str, List[Cases]]):
+    def generate(self, data: Dict[str, List[Datum]]):
         '''Generate the HTML dashboard for the given case reports.
 
         Parameters
         ----------
-        cases : dictionary of :class:`Cases` lists
+        data : dictionary of :class:`Cases` or :class:`CaseTesting` lists
             a dictionary of case reports, keyed by the region names
         '''
-        def min_confirmed(case: Cases) -> bool:
-            return case.confirmed >= self._min_confirmed
-
-        for region in cases:
-            cases[region] = filters.sum_by_date(cases[region])
-
-        timeseries = {
-            name: TimeSeries(filters.select(region, min_confirmed),
-                             **self._analysis_config)
-            for name, region in cases.items()
-        }
+        for region in data:
+            data[region] = filters.sum_by_date(data[region])
 
         if self.output_mode == OutputType.DEFAULT:
-            self._detail_page(timeseries)
+            self._detail_page(data)
         elif self.output_mode == OutputType.DASHBOARD:
-            self._dashboard_page(timeseries)
+            self._dashboard_page(data)
 
-    def _detail_page(self, timeseries: Dict[str, TimeSeries]):
+    def _detail_page(self, data: Dict[str, List[Datum]]):
         '''Generates the single HTML report (aka detail view).
 
         Parameters
         ----------
-        timeseries : Dict[str, TimeSeries]
-            dictionary containing the timeseries for each region
+        data : dictionary of :class:`Cases` or :class:`CaseTesting` lists
+            a dictionary of case reports, keyed by the region names
         '''
         with self._output_path.open('w') as f:
-            f.write(self._html.generate_report(timeseries))
+            f.write(self._html.generate_report(data, self._min_confirmed))
 
-    def _dashboard_page(self, timeseries: Dict[str, TimeSeries]):
+    def _dashboard_page(self, data: Dict[str, List[Datum]]):
         '''Generates the dashboard view with regional detail views.
 
         Parameters
         ----------
-        timeseries : Dict[str, TimeSeries]
-            dictionary containing the timeseries for each region
+        data : dictionary of :class:`Cases` or :class:`CaseTesting` lists
+            a dictionary of case reports, keyed by the region names
         '''
-        overview, details = self._html.generate_overview(timeseries)
+        overview, details = self._html.generate_overview(data, self._min_confirmed)  # noqa: E501
         with self._output_path.open('w') as f:
             f.write(overview)
 

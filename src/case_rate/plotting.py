@@ -1,176 +1,287 @@
 import datetime
-from typing import Dict, List, Tuple
+from typing import List, Tuple, Optional
 
 import bokeh.models
 import bokeh.palettes
 import bokeh.plotting
 import numpy as np
 
-from case_rate.timeseries import TimeSeries
+from . import analysis
+from .analysis import TimeSeries
 
 
-class Plotter(object):
-    '''High-level object for plotting time-series data.'''
-    def __init__(self, data: Dict[str, TimeSeries]):
+def _generate_palettes(num_series: int) -> list:
+    '''Generates the palettes to choose the colours of the time series.
+
+    Parameters
+    ----------
+    num_series : int
+        number of time series being displayed
+
+    Returns
+    -------
+    list
+        the D3 palettes for each time series
+    '''
+    num_palettes = min(max(num_series, 3), 20)
+    if num_series < 10:
+        palettes = bokeh.palettes.d3['Category10'][num_palettes]
+    else:
+        palettes = bokeh.palettes.d3['Category20'][num_palettes]
+
+    return list(palettes[i % num_palettes] for i in range(num_palettes))
+
+
+def _to_datetime(dates: List[datetime.date]) -> List[datetime.datetime]:
+    '''Converts :class:`datetime.date` objects into :class:`datetime.datetime`.
+
+    Bokeh doesn't recognize date objects and so they have to be converted into
+    datetime prior to rendering.
+
+    Parameters
+    ----------
+    dates : list of :class:`datetime.date`
+        input dates
+
+    Returns
+    -------
+    list of :class:`datetime.datetime`
+        converted dates
+    '''
+    d: datetime.date
+    return list(datetime.datetime(d.year, d.month, d.day) for d in dates)
+
+
+def _make_plot(**kwargs) -> bokeh.plotting.Figure:
+    '''Initializes the bokeh plot.
+
+    Parameters
+    ----------
+    title : str, optional
+        plot title
+    ylabel : str, optional
+        label for the y-axis
+    yrange : ``(min, max)``
+        values that the y-axis should span
+    log_plot : bool, optional
+        y-axis is represented using a logarithmic scale
+
+    Returns
+    -------
+    bokeh.plotting.Figure
+        bokeh figure
+    '''
+    plot_args = {
+        'x_axis_label': 'Date',
+        'x_axis_type': 'datetime',
+    }
+
+    if 'title' in kwargs:
+        plot_args['title'] = kwargs['title']
+    if 'ylabel' in kwargs:
+        plot_args['y_axis_label'] = kwargs['ylabel']
+    if 'log_plot' in kwargs and kwargs['log_plot']:
+        plot_args['y_axis_type'] = 'log'
+    if 'yrange' in kwargs:
+        plot_args['y_range'] = kwargs['yrange']
+
+    return bokeh.plotting.Figure(**plot_args)
+
+
+class Plotter:
+    '''Plotting interface for time series data.
+
+    The :class:`Plotter` class provides a single interface for plotting a
+    :class:`TimeSeries` using Bokeh.
+    '''
+    def __init__(self, series: List[TimeSeries],
+                 filter_window: int = 11,
+                 confidence_interval: Optional[float] = None):
         '''
         Parameters
         ----------
-        data : Dict[str, TimeSeries]
-            dictionary containing the time series to plot
+        series : list of :class:`TimeSeries`
+            the time series that the plotter is going to plot
+        filter_window : int, optional
+            specify the size of the filter window used when generating some of
+            the plots; default is 11
+        confidence_interval : float, optional
+            specify the confidence interval for any plots that might visualize
+            it
         '''
-        self._num_series = len(data)
+        ts: TimeSeries
 
-        # Select the colour palettes to use.
-        num_palettes = min(max(self._num_series, 3), 20)
-        if self._num_series < 10:
-            palettes = bokeh.palettes.d3['Category10'][num_palettes]
-        else:
-            palettes = bokeh.palettes.d3['Category20'][num_palettes]
+        palettes = _generate_palettes(len(series))
+        dates = [_to_datetime(ts.dates) for ts in series]
 
-        # Need to convert datetime.date into datetime.datetime so Bokeh knows
-        # what do do with them.
-        d: datetime.date
-        self._dates = {
-            name: [
-                datetime.datetime(d.year, d.month, d.day) for d in ts.dates
-            ] for name, ts in data.items()
-        }
+        self._data: List[Tuple[str, datetime.datetime, TimeSeries]]
+        self._data = list(zip(palettes, dates, series))
 
-        def to_datetime(date: datetime.date) -> datetime.datetime:
-            return datetime.datetime(date.year, date.month, date.day)
+        self._filter_args = {}
+        self._filter_args['window'] = filter_window
+        if confidence_interval is not None:
+            self._filter_args['confidence'] = confidence_interval
 
-        # Rank regions based on counts to simplify some of the plotting.
-        regions = sorted(data.keys(),
-                         key=lambda region: -data[region].confirmed[-1])
-        dates = list(
-            [to_datetime(date) for date in data[region].dates]
-            for region in regions
-        )
-        data = list(data[region] for region in regions)
-        colours = list(palettes[i % self._num_series] for i in range(self._num_series))  # noqa: E501
+    def plot_series(self,
+                    title: Optional[str] = None,
+                    ylabel: Optional[str] = None,
+                    log_plot: bool = True,
+                    show_count: bool = True) -> bokeh.plotting.Figure:
+        '''Plots the provided series on a Bokeh plot.
 
-        self._data: List[Tuple[str, str, datetime.datetime, TimeSeries]]
-        self._data = list(zip(colours, regions, dates, data))
+        Parameters
+        ----------
+        title : str, optional
+            plot title
+        y_label : str, optional
+            the y-axis label
+        log_plot : bool, optional
+            if ``True`` then the plot has a logarithmic y-axis; defaults to
+            ``True``
+        show_count : bool, optional
+            if ``True`` then the very last value is shown on the plot, treating
+            it as a cumulative sum
 
-    def plot_confirmed(self) -> bokeh.plotting.Figure:
-        '''Plot all confirmed cases.'''
-        p = bokeh.plotting.figure(title='Confirmed Cases',
-                                  x_axis_label='Date',
-                                  x_axis_type='datetime',
-                                  y_axis_label='Cases',
-                                  y_axis_type='log')
+        Returns
+        -------
+        bokeh ``Figure``
+        '''
+        p = _make_plot(title=title, ylabel=ylabel, log_plot=log_plot)
+        filter_args = self._filter_args.copy()
+        filter_args['log_domain'] = log_plot
 
-        for colour, region, dates, timeseries in self._data:
-            p.line(dates, timeseries.smoothed, legend_label=region,
+        for colour, dates, series in self._data:
+            smoothed = analysis.smooth(series, **filter_args)
+            p.line(dates, smoothed, legend_label=series.label,
                    line_color=colour, line_width=1.5)
-            p.line(dates, timeseries.confirmed, line_color='lightgray')
+            p.line(dates, np.array(series), line_color='lightgray')
 
-            count = bokeh.models.Label(x=dates[-1],
-                                       y=timeseries.confirmed[-1],
-                                       text=f'{timeseries.confirmed[-1]}')
-            p.add_layout(count)
-
-        return p
-
-    def plot_new_cases(self) -> bokeh.plotting.Figure:
-        '''Plot daily new cases over time.'''
-        p = bokeh.plotting.figure(title='Daily New Cases',
-                                  x_axis_label='Date',
-                                  x_axis_type='datetime',
-                                  y_axis_label='Cases')
-
-        timeseries: TimeSeries
-        for colour, region, dates, timeseries in self._data:
-            new_cases = timeseries._processed.package()
-            source = bokeh.models.ColumnDataSource(data={
-                'date': dates,
-                'new_cases': timeseries.daily_new_cases(),
-                'estimated_slope': np.squeeze(new_cases[:, 0]),
-                'upper_limit': np.squeeze(new_cases[:, 1]),
-                'lower_limit': np.squeeze(new_cases[:, 2])
-            })
-
-            p.vbar(x='date', top='new_cases', source=source,
-                   width=datetime.timedelta(days=1),
-                   fill_color=colour,
-                   alpha=0.5)
-            p.line(x='date', y='estimated_slope', source=source,
-                   line_color=colour,
-                   line_width=2,
-                   legend_label=region)
-
-            uncertainty = bokeh.models.Band(base='date', upper='upper_limit',
-                                            lower='lower_limit', source=source,
-                                            line_color='grey',
-                                            line_dash='dashed',
-                                            line_alpha=1.0,
-                                            fill_color=colour,
-                                            fill_alpha=0.2)
-            p.add_layout(uncertainty)
+            if show_count:
+                p.add_layout(
+                    bokeh.models.Label(
+                        x=dates[-1], y=series[-1], text=f'{int(series[-1])}'
+                    )
+                )
 
         return p
 
-    def plot_growth_factor(self) -> bokeh.plotting.Figure:
-        '''Plot the growth factor over time.'''
-        p = bokeh.plotting.figure(title='Growth Factor',
-                                  x_axis_label='Date',
-                                  x_axis_type='datetime',
-                                  y_axis_label='Growth Factor',
-                                  y_range=(0, 4))
+    def plot_derivative(self,
+                        title: Optional[str] = None,
+                        ylabel: Optional[str] = None) -> bokeh.plotting.Figure:
+        '''Plot the derivative of the time series.
 
-        timeseries: TimeSeries
-        for colour, region, dates, timeseries in self._data:
-            rates = timeseries.growth_factor()
+        Parameters
+        ----------
+        title : str, optional
+            plot title
+        ylabel : str, optional
+            y-axis label
+        '''
+        p = _make_plot(title=title, ylabel=ylabel)
+        for colour, dates, series in self._data:
+            derivative = analysis.estimate_slope(series, **self._filter_args)
 
-            source = bokeh.models.ColumnDataSource(data={
+            data = {
                 'date': dates,
-                'growth_factor': np.squeeze(rates[:, 0]),
-                'upper': np.squeeze(rates[:, 1]),
-                'lower': np.squeeze(rates[:, 2])
-            })
+                'difference': series.daily_change,
+                'derivative': np.squeeze(derivative[:, 0]),
+                'upper_ci': np.squeeze(derivative[:, 1]),
+                'lower_ci': np.squeeze(derivative[:, 2])
+            }
+
+            source = bokeh.models.ColumnDataSource(data)
+            width = datetime.timedelta(days=1)
+
+            # Displays the finite difference and slope estimate.
+            p.vbar(x='date', top='difference', source=source, width=width,
+                   fill_color=colour, alpha=0.5)
+            p.line(x='date', y='derivative', source=source, line_color=colour,
+                   line_width=2, legend_label=series.label)
+
+            # Displays the confidence interval band.
+            p.add_layout(bokeh.models.Band(
+                base='date', upper='upper_ci', lower='lower_ci', source=source,
+                line_color='grey', line_dash='dashed', line_alpha=1.0,
+                fill_color=colour, fill_alpha=0.2))
+
+        return p
+
+    def plot_percent_change(self, title: Optional[str] = None) -> bokeh.plotting.Figure:  # noqa: E501
+        '''Plot the sample-over-sample percent change.
+
+        Parameters
+        ----------
+        title : str, optional
+            plot title
+
+        Returns
+        -------
+        bokeh ``Figure``
+        '''
+        p = _make_plot(title=title, ylabel='Percent Change (%)', yrange=(0, 50))  # noqa: E501
+        for colour, dates, series in self._data:
+            prcnt_change = analysis.percent_change(series, **self._filter_args)
+            prcnt_change *= 100.0
+
+            data = {
+                'date': dates,
+                'percent_change': np.squeeze(prcnt_change[:, 0]),
+                'upper_ci': np.squeeze(prcnt_change[:, 1]),
+                'lower_ci': np.squeeze(prcnt_change[:, 2])
+            }
+
+            source = bokeh.models.ColumnDataSource(data)
+
+            # Displays the finite difference and slope estimate.
+            p.line(x='date', y='percent_change', source=source,
+                   line_color=colour, line_width=2, legend_label=series.label)
+
+            # Displays the confidence interval band.
+            p.add_layout(bokeh.models.Band(
+                base='date', upper='upper_ci', lower='lower_ci', source=source,
+                line_color='grey', line_dash='dashed', line_alpha=1.0,
+                fill_color=colour, fill_alpha=0.2))
+
+        return p
+
+    def plot_growth_factor(self, title: Optional[str] = None) -> bokeh.plotting.Figure:  # noqa: E501
+        '''Plot the growth factor for the time series.
+
+        Parameters
+        ----------
+        title : str, optional
+            plot title
+
+        Returns
+        -------
+        bokeh ``Figure``
+        '''
+        p = _make_plot(title=title, ylabel='Growth Factor', yrange=(0, 2.5))
+
+        for colour, dates, series in self._data:
+            growth = analysis.growth_factor(series, **self._filter_args)
+
+            data = {
+                'date': dates,
+                'growth_factor': np.squeeze(growth[:, 0]),
+                'upper_ci': np.squeeze(growth[:, 1]),
+                'lower_ci': np.squeeze(growth[:, 2])
+            }
+
+            source = bokeh.models.ColumnDataSource(data)
+
+            # Displays the finite difference and slope estimate.
             p.line(x='date', y='growth_factor', source=source,
-                   legend_label=region, line_color=colour, line_width=2)
+                   line_color=colour, line_width=2, legend_label=series.label)
 
-        boundary = bokeh.models.Span(location=1, dimension='width',
-                                     line_dash='dashed', line_color='gray')
-        p.add_layout(boundary)
+            # Displays the confidence interval band.
+            p.add_layout(bokeh.models.Band(
+                base='date', upper='upper_ci', lower='lower_ci', source=source,
+                line_color='grey', line_dash='dashed', line_alpha=1.0,
+                fill_color=colour, fill_alpha=0.2))
 
-        return p
-
-    def plot_log_slope(self) -> bokeh.plotting.Figure:
-        '''Plot the daily multiplier (i.e. log-slope).'''
-        p = bokeh.plotting.figure(title='Day-over-Day Multiplier',
-                                  x_axis_label='Date',
-                                  x_axis_type='datetime',
-                                  y_axis_label='Multiplier',
-                                  y_range=(1, 2))
-
-        timeseries: TimeSeries
-        for colour, region, dates, timeseries in self._data:
-            rates = np.power(10, timeseries.log_slope())
-
-            source = bokeh.models.ColumnDataSource(data={
-                'date': dates,
-                'log_slope': np.squeeze(rates[:, 0]),
-                'upper': np.squeeze(rates[:, 1]),
-                'lower': np.squeeze(rates[:, 2])
-            })
-
-            uncertainty = bokeh.models.Band(base='date', upper='upper',
-                                            lower='lower', source=source,
-                                            level='underlay',
-                                            line_color='grey',
-                                            line_dash='dashed',
-                                            line_alpha=1.0,
-                                            fill_alpha=0.4,
-                                            fill_color=colour)
-
-            p.line(x='date', y='log_slope', source=source,
-                   legend_label=region, line_color=colour, line_width=2)
-            p.add_layout(uncertainty)
-
-        boundary = bokeh.models.Span(location=1, dimension='width',
-                                     line_dash='dashed', line_color='gray')
-        p.add_layout(boundary)
+        # Displays line where growth is slowing.
+        p.add_layout(bokeh.models.Span(location=1, dimension='width',
+                                       line_dash='dashed', line_color='gray'))
 
         return p

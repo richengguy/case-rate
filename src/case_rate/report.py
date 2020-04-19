@@ -1,16 +1,16 @@
 from collections import OrderedDict
 import datetime
-from typing import Dict, Optional, NamedTuple
+from typing import Dict, List, Optional, NamedTuple
 
 import bokeh.embed
 import bokeh.plotting
 import bokeh.resources
 import jinja2
-import numpy as np
 
-from . import VERSION
+from . import VERSION, analysis
+from ._types import Datum
 from .plotting import Plotter
-from .timeseries import TimeSeries
+from .analysis import TimeSeries
 
 
 class SourceInfo(NamedTuple):
@@ -34,25 +34,37 @@ class HTMLReport(object):
             autoescape=jinja2.select_autoescape(['html'])
         )
 
-    def generate_report(self, data: Dict[str, TimeSeries]) -> str:
+    def generate_report(self, data: Dict[str, List[Datum]],
+                        min_confirmed: int = 0) -> str:
         '''Generate an HTML report for the provided time series.
 
         Parameters
         ----------
-        data : Dict[str, TimeSeries]
-            a dictionary containing the time series data for each region
+        data : dictionary of :class:`Cases` or :class:`CaseTesting` lists
+            a dictionary of case reports, keyed by the region names
+        min_confirmed : int, optional
+            ignore any data where the number of confirmed cases is less than
+            this value; default is '0' or disabled
 
         Returns
         -------
         str
             the rendered HTML output
         '''
-        plotter = Plotter(data)
+        sources = {region: self._sources[region] for region in data.keys()}
+
+        series = []
+        for region, reports in data.items():
+            ts = TimeSeries(reports, 'confirmed', min_confirmed)
+            ts.label = region
+            series.append(ts)
+
+        plotter = Plotter(series)
         plots = {
-            'total_confirmed': plotter.plot_confirmed(),
-            'new_daily_cases': plotter.plot_new_cases(),
-            'growth_factor': plotter.plot_growth_factor(),
-            'log_slope': plotter.plot_log_slope()
+            'total_confirmed': plotter.plot_series('Confirmed Cases', 'Cases'),
+            'new_daily_cases': plotter.plot_derivative('Daily Cases', 'Cases'),
+            'growth_factor': plotter.plot_growth_factor('Estimated Growth Factor'),  # noqa: E501
+            'log_slope': plotter.plot_percent_change('Day-over-day Change')
         }
 
         for plot in plots.values():
@@ -64,19 +76,23 @@ class HTMLReport(object):
 
         template = self._env.get_template('report.html')
         return template.render(date=datetime.date.today(),
-                               sources=self._sources,
+                               sources=sources,
                                regions=list(data.keys()),
                                bokeh_resources=resources,
                                bokeh_scripts=script,
                                bokeh_plots=div)
 
-    def generate_overview(self, data: Dict[str, TimeSeries]) -> str:
+    def generate_overview(self, data: Dict[str, List[Datum]],
+                          min_confirmed: int = 0) -> str:
         '''Generates an HTML overview report for the provided time series.
 
         Parameters
         ----------
         data : Dict[str, TimeSeries]
             a dictionary containing the time series data for each region
+        min_confirmed : int, optional
+            ignore any data where the number of confirmed cases is less than
+            this value; default is '0' or disabled
 
         Returns
         -------
@@ -91,30 +107,32 @@ class HTMLReport(object):
         plots = OrderedDict()
         stats = {}
         for region in ordering:
-            plotter = Plotter({region: data[region]})
+            ts = TimeSeries(data[region], 'confirmed', min_confirmed)
+            ts.label = region
 
-            gf = np.squeeze(data[region].growth_factor()[-1, :])
-            multiplier = np.power(10, data[region].log_slope()[-1, :])
-            multiplier = np.squeeze(multiplier)
+            gf = analysis.growth_factor(ts, 11)[-1, :]
+            percent_change = analysis.percent_change(ts, 11)[-1, :]
+            percent_change *= 100
 
             info = {}
             info['link'] = f'details-{region}.html'
-            info['total_confirmed'] = data[region].confirmed[-1]
-            info['new_cases'] = data[region].daily_new_cases()[-1]
+            info['total_confirmed'] = int(ts[-1])
+            info['new_cases'] = int(ts.daily_change[-1])
             info['multiplier'] = {
-                'estimate': multiplier[0],
-                'lower': multiplier[1],
-                'upper': multiplier[2]
+                'estimate': percent_change[0],
+                'upper': percent_change[1],
+                'lower': percent_change[2]
             }
             info['growth_factor'] = {
                 'estimate': gf[0],
-                'lower': gf[1],
-                'upper': gf[2]
+                'upper': gf[1],
+                'lower': gf[2]
             }
 
             stats[region] = info
 
-            plots[region] = plotter.plot_new_cases()
+            plotter = Plotter([ts])
+            plots[region] = plotter.plot_derivative('Daily Cases', 'Cases')
             plots[region].sizing_mode = 'scale_both'
             plots[region].aspect_ratio = 4 / 3
             plots[region].legend.visible = False
@@ -135,7 +153,8 @@ class HTMLReport(object):
                                    VERSION=VERSION)
 
         details = {
-            stats[region]['link']: self.generate_report({region: timeseries})
+            stats[region]['link']: self.generate_report({region: timeseries},
+                                                        min_confirmed)
             for region, timeseries in data.items()
         }
 
