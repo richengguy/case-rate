@@ -25,7 +25,7 @@ jobs:
         pip install .
     - name: Generate the nightly report using the latest COVID-19 data.
       run: |
-        covid19 report --dashboard --output index.html -c Canada -c US
+        covid19 report --dashboard --output index.html --min-confirmed 100 -c Canada -c US
     - name: Checkout the gh-pages branch in its own folder.
       uses: actions/checkout@v2
       with:
