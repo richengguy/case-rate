@@ -6,7 +6,6 @@ import bokeh.embed
 import bokeh.plotting
 import bokeh.resources
 import jinja2
-import numpy as np
 
 from . import VERSION, analysis
 from ._types import Datum
@@ -35,13 +34,17 @@ class HTMLReport(object):
             autoescape=jinja2.select_autoescape(['html'])
         )
 
-    def generate_report(self, data: Dict[str, List[Datum]]) -> str:
+    def generate_report(self, data: Dict[str, List[Datum]],
+                        min_confirmed: int = 0) -> str:
         '''Generate an HTML report for the provided time series.
 
         Parameters
         ----------
         data : dictionary of :class:`Cases` or :class:`CaseTesting` lists
             a dictionary of case reports, keyed by the region names
+        min_confirmed : int, optional
+            ignore any data where the number of confirmed cases is less than
+            this value; default is '0' or disabled
 
         Returns
         -------
@@ -52,7 +55,7 @@ class HTMLReport(object):
 
         series = []
         for region, reports in data.items():
-            ts = TimeSeries(reports, 'confirmed')
+            ts = TimeSeries(reports, 'confirmed', min_confirmed)
             ts.label = region
             series.append(ts)
 
@@ -79,13 +82,17 @@ class HTMLReport(object):
                                bokeh_scripts=script,
                                bokeh_plots=div)
 
-    def generate_overview(self, data: Dict[str, List[Datum]]) -> str:
+    def generate_overview(self, data: Dict[str, List[Datum]],
+                          min_confirmed: int = 0) -> str:
         '''Generates an HTML overview report for the provided time series.
 
         Parameters
         ----------
         data : Dict[str, TimeSeries]
             a dictionary containing the time series data for each region
+        min_confirmed : int, optional
+            ignore any data where the number of confirmed cases is less than
+            this value; default is '0' or disabled
 
         Returns
         -------
@@ -100,11 +107,10 @@ class HTMLReport(object):
         plots = OrderedDict()
         stats = {}
         for region in ordering:
-            ts = TimeSeries(data[region], 'confirmed')
+            ts = TimeSeries(data[region], 'confirmed', min_confirmed)
             ts.label = region
 
-            # gf = np.squeeze(data[region].growth_factor()[-1, :])
-            gf = [-1, -1, -1]
+            gf = analysis.growth_factor(ts, 11)[-1, :]
             percent_change = analysis.percent_change(ts, 11)[-1, :]
             percent_change *= 100
 
@@ -147,7 +153,8 @@ class HTMLReport(object):
                                    VERSION=VERSION)
 
         details = {
-            stats[region]['link']: self.generate_report({region: timeseries})
+            stats[region]['link']: self.generate_report({region: timeseries},
+                                                        min_confirmed)
             for region, timeseries in data.items()
         }
 

@@ -218,7 +218,7 @@ class Plotter:
         -------
         bokeh ``Figure``
         '''
-        p = _make_plot(title=title, ylabel='Percent Change (%)')
+        p = _make_plot(title=title, ylabel='Percent Change (%)', yrange=(0, 50))  # noqa: E501
         for colour, dates, series in self._data:
             prcnt_change = analysis.percent_change(series, **self._filter_args)
             prcnt_change *= 100.0

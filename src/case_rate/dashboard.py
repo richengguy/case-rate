@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 from . import filters
 from ._types import PathLike, Datum
 from .report import HTMLReport, SourceInfo
-from .timeseries import TimeSeries
 
 
 class OutputType(enum.Enum):
@@ -49,11 +48,9 @@ class Dashboard(object):
         '''
         self.output_mode = mode
         self._output_path = pathlib.Path(output)
-        self._analysis_config = {
-            'confidence': confidence,
-            'window': filter_window
-        }
         self._min_confirmed = min_confirmed
+        self._confidence = confidence
+        self._filter_window = filter_window
         self._html = HTMLReport(sources)
 
     def generate(self, data: Dict[str, List[Datum]]):
@@ -81,7 +78,7 @@ class Dashboard(object):
             a dictionary of case reports, keyed by the region names
         '''
         with self._output_path.open('w') as f:
-            f.write(self._html.generate_report(data))
+            f.write(self._html.generate_report(data, self._min_confirmed))
 
     def _dashboard_page(self, data: Dict[str, List[Datum]]):
         '''Generates the dashboard view with regional detail views.
@@ -91,7 +88,7 @@ class Dashboard(object):
         data : dictionary of :class:`Cases` or :class:`CaseTesting` lists
             a dictionary of case reports, keyed by the region names
         '''
-        overview, details = self._html.generate_overview(data)
+        overview, details = self._html.generate_overview(data, self._min_confirmed)  # noqa: E501
         with self._output_path.open('w') as f:
             f.write(overview)
 
