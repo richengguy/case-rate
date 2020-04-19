@@ -84,8 +84,8 @@ class TimeSeries:
     def daily_change(self) -> np.ndarray:
         return np.squeeze(np.pad(np.diff(self._samples), (1, 0)))
 
-    def _local_regression(self, window: int, log_domain: bool,
-                          order: int) -> List[LeastSquares]:
+    def local_regression(self, window: int, log_domain: bool,
+                         order: int) -> List[LeastSquares]:
         '''Performs a series of local least-squares on the time series.
 
         This performs a series of local ordinary least squares analysis on the
