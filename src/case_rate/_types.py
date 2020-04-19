@@ -9,6 +9,7 @@ __all__ = [
 ]
 
 PathLike = Union[str, pathlib.Path]
+Datum = Union['Cases', 'CaseTesting']
 
 
 class Cases(NamedTuple):

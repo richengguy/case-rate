@@ -1,20 +1,21 @@
 import datetime
-from typing import List, Union
+from typing import List
 
 import numpy as np
 
-from .least_squares import LeastSquares, evalpoly, derivative
+from .least_squares import LeastSquares
 from .. import filters
-from .._types import Cases, CaseTesting
-
-Datum = Union[Cases, CaseTesting]
+from .._types import Datum
 
 
 class TimeSeries:
-    '''Represent some time series data and apply some processing to it.
+    '''Represent a set of time series data
 
     Attributes
     ----------
+    label : str
+        a label used to describe the time series; it will default to the
+        field used to generate the time series.
     dates : list of :class:`datetime.date` instances
         list of dates the time series represents
     daily_change : np.ndarray
@@ -66,6 +67,7 @@ class TimeSeries:
         self._start = start_date
         self._dates = dates
         self._samples = samples
+        self.label = field
 
     def __len__(self):
         return self._samples.shape[0]
@@ -128,112 +130,3 @@ class TimeSeries:
                                               order))
 
         return least_squares
-
-    def smoothed(self, window: int, log_domain: bool,
-                 order: int = 1) -> np.ndarray:
-        '''Return a smoothed version of the time series.
-
-        Parameters
-        ----------
-        window : int
-            size of the sliding window, in days, used for the smoothing
-        log_domain : bool
-            perform the smoothing in the log-domain
-        order : int, optional
-            the order of the polynomial used for the smoothing; defaults
-            to '1', which assumes the contents of the window are approximately
-            linear
-
-        Returns
-        -------
-        np.ndarray
-            a ``N``-length array containing the smoothed time series
-        '''
-        output = np.zeros((len(self),))
-        regressions = self._local_regression(window, log_domain, order)
-
-        ls: LeastSquares
-        for i, ls in enumerate(regressions):
-            output[i] = ls.value(i)
-
-        if log_domain:
-            output = np.exp(output)
-
-        return output
-
-    def slope(self, window: int, order: int = 1,
-              confidence: float = 0.95) -> np.ndarray:
-        '''Estimate the slope at any given point in the time series.
-
-        Parameters
-        ----------
-        window : int
-            size of the sliding window, in days, used in the slope estimate
-        order : int, optional
-            the order of the polynomial used for the slope estimation; defaults
-            to '1', which assumes the contents of the window are approximately
-            linear
-        confidence : float, optional
-            the desired confidence interval, which defaults to 95%
-
-        Returns
-        -------
-        numpy.ndarray
-            a :math:`N \\times 3`` array containing the slope and 95%
-            confidence interval, e.g. each row is ``(slope, upper_ci,
-            lower_ci)``
-        '''
-        output = np.zeros((len(self), 3))
-        regressions = self._local_regression(window, False, order)
-
-        ls: LeastSquares
-        for i, ls in enumerate(regressions):
-            weights = ls.weights
-            cv = ls.confidence(confidence)
-            t0 = np.array([i])
-
-            output[i, 0] = evalpoly(derivative(weights), t0)
-            output[i, 1] = evalpoly(derivative(weights + cv), t0)
-            output[i, 2] = evalpoly(derivative(weights - cv), t0)
-
-        return output
-
-    def percent_change(self, window: int, order: int = 1,
-                       confidence: float = 0.95) -> np.ndarray:
-        '''Estimate the day-over-day percent change.
-
-        Parameters
-        ----------
-        window : int
-            size of the sliding window, in days, used in the slope estimate
-        order : int, optional
-            the order of the polynomial used for the slope estimation; defaults
-            to '1', which assumes the contents of the window are approximately
-            linear
-        confidence : float, optional
-            the desired confidence interval, which defaults to 95%
-
-        Returns
-        -------
-        numpy.ndarray
-            a :math:`N \\times 3`` array containing the percent change and 95%
-            confidence interval, e.g. each row is ``(slope, upper_ci,
-            lower_ci)``
-        '''
-        output = np.zeros((len(self), 3))
-        regressions = self._local_regression(window, True, order)
-
-        ls: LeastSquares
-        for i, ls in enumerate(regressions):
-            weights = ls.weights
-            cv = ls.confidence(confidence)
-            t0 = np.array([i])
-
-            output[i, 0] = evalpoly(derivative(weights), t0)
-            output[i, 1] = evalpoly(derivative(weights + cv), t0)
-            output[i, 2] = evalpoly(derivative(weights - cv), t0)
-
-        # Convert into percent change by converting from the log-domain and
-        # subtracting by one.
-        output = np.exp(output) - 1
-        return output
