@@ -84,8 +84,8 @@ class TimeSeries:
     def daily_change(self) -> np.ndarray:
         return np.squeeze(np.pad(np.diff(self._samples), (1, 0)))
 
-    def local_regression(self, window: int, log_domain: bool,
-                         order: int) -> List[LeastSquares]:
+    def local_regression(self, window: int, log_domain: bool = False,
+                         order: int = 1) -> List[LeastSquares]:
         '''Performs a series of local least-squares on the time series.
 
         This performs a series of local ordinary least squares analysis on the
@@ -97,8 +97,8 @@ class TimeSeries:
         window : int
             size of the sliding window, in days, used for the local least
             squares
-        log_domain : bool
-            perform the estimation in the log-domain
+        log_domain : bool, optional
+            perform the estimation in the log-domain; defaults to ``False``
         order : int, optional
             the order of the polynomial used for the regression; defaults
             to '1', which assumes the contents of the window are approximately
