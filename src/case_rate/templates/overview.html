@@ -38,7 +38,7 @@
                         <li>Total Confirmed: {{ stats[region].total_confirmed }}</li>
                         <li>New Cases: {{ stats[region].new_cases }}</li>
                         <li>Growth Factor: {{ stats[region].growth_factor.estimate | round(3) }}</li>
-                        <li>Daily Multiplier: {{ stats[region].multiplier.estimate | round(3) }}</li>
+                        <li>Percent Change: {{ stats[region].multiplier.estimate | round(3) }} (L: {{ stats[region].multiplier.lower | round(3) }}, U: {{ stats[region].multiplier.upper | round(3) }})</li>
                     </ul>
                     </div>
                 </div>

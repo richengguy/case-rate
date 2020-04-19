@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict, List, Tuple, Optional
+from typing import List, Tuple, Optional
 
 import bokeh.models
 import bokeh.palettes
@@ -78,8 +78,8 @@ def _make_plot(**kwargs) -> bokeh.plotting.Figure:
         plot_args['title'] = kwargs['title']
     if 'ylabel' in kwargs:
         plot_args['y_axis_label'] = kwargs['ylabel']
-    if 'log_plot' in kwargs:
-        plot_args['y_axis_type'] = kwargs['log_plot']
+    if 'log_plot' in kwargs and kwargs['log_plot']:
+        plot_args['y_axis_type'] = 'log'
 
     return bokeh.plotting.Figure(**plot_args)
 
@@ -143,8 +143,11 @@ class Plotter:
         bokeh ``Figure``
         '''
         p = _make_plot(title=title, ylabel=ylabel, log_plot=log_plot)
+        filter_args = self._filter_args.copy()
+        filter_args['log_domain'] = log_plot
+
         for colour, dates, series in self._data:
-            smoothed = analysis.smooth(series, self._window, log_plot)
+            smoothed = analysis.smooth(series, **filter_args)
             p.line(dates, smoothed, legend_label=series.label,
                    line_color=colour, line_width=1.5)
             p.line(dates, np.array(series), line_color='lightgray')
