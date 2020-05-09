@@ -11,6 +11,17 @@ from .report import SourceInfo
 from .storage import Storage
 
 
+def _parse_region_selector(region: str) -> Tuple[Optional[str], Optional[str]]:
+    '''Parses the region selection format.'''
+    parts = region.split(':')
+    if len(parts) == 1:
+        return (parts[0], None)
+    elif len(parts) == 2:
+        return (parts[0], parts[1])
+    else:
+        raise ValueError('Expected "<country>:<province/state>" selector.')
+
+
 @click.group()
 @click.option('-c', '--config', 'config_path', default='case-rate.toml',
               type=click.Path(file_okay=True, dir_okay=False, exists=True),
@@ -127,13 +138,14 @@ def report(config: dict, countries: Tuple[str], output: str,
 
     # Populate the database.
     with Storage() as storage:
-        for country in countries:
-            storage.populate(input_sources[country])
+        for region in countries:
+            storage.populate(input_sources[region])
 
-        data = {
-            country: storage.cases(input_sources[country], country=country)
-            for country in countries
-        }
+        data = {}
+        for region in countries:
+            country, province = _parse_region_selector(region)
+            data[region] = storage.cases(input_sources[region],
+                                         country=country, province=province)
 
     # Ensure `None` maps to `World` in the dashboard.
     if None in data:
@@ -176,9 +188,12 @@ def info(config: dict, country: Optional[str], details: bool):
     input_source = sources.init_source(config['storage'], False, country,
                                        config['sources'])
 
+    if country is not None:
+        country, province = _parse_region_selector(country)
+
     with Storage() as storage:
         storage.populate(input_source)
-        cases = storage.cases(input_source, country=country)
+        cases = storage.cases(input_source, country=country, province=province)
 
     cases = filters.sum_by_date(cases)
 
