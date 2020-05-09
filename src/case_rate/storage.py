@@ -243,10 +243,13 @@ class Storage:
         with self._conn:
             cursor = self._conn.cursor()
 
-            # Check if the source exists and if not, register it.
+            # Check if the source exists.  If yes, then register otherwise
+            # return to avoid duplicate inserts.
             ref = self._get_source(source)
             if ref is None:
                 ref = self._register(source)
+            else:
+                return
 
             # Populate the set of confirmed cases.
             cases: Cases
