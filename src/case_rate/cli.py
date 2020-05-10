@@ -204,6 +204,8 @@ def info(config: dict, country: Optional[str], details: bool):
 
     if country is not None:
         click.echo(click.style('Country: ', bold=True) + country)
+    if province is not None:
+        click.echo(click.style('Province/State: ', bold=True) + province)
 
     click.echo(f'First: {cases[0].date}')
     click.echo(f'  - Confirmed: {cases[0].confirmed}')
