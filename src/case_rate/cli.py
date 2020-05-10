@@ -205,9 +205,11 @@ def info(config: dict, country: Optional[str], details: bool):
 
     click.echo(f'First: {cases[0].date}')
     click.echo(f'  - Confirmed: {cases[0].confirmed}')
+    click.echo(f'  - Recovered: {cases[0].resolved}')
     click.echo(f'  - Deceased:  {cases[0].deceased}')
     click.echo(f'Last:  {cases[-1].date}')
     click.echo(f'  - Confirmed: {cases[-1].confirmed}')
+    click.echo(f'  - Recovered: {cases[-1].resolved}')
     click.echo(f'  - Deceased:  {cases[-1].deceased}')
 
     if details:

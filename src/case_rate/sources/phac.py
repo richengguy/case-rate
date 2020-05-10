@@ -76,6 +76,9 @@ def _to_int(number: str) -> int:
     if len(number) == 0:
         return 0
 
+    if number == 'N/A':
+        return 0
+
     return int(number)
 
 
@@ -149,7 +152,7 @@ class PHACSource(InputSource):
                     province=entry['prname'],
                     country='Canada',
                     confirmed=_to_int(entry['numtotal']),
-                    resolved=-1,
+                    resolved=_to_int(entry['numrecover']),
                     deceased=_to_int(entry['numdeaths'])
                 )
 
