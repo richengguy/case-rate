@@ -48,13 +48,21 @@ class Cases(NamedTuple):
 
         province = self.province if other.province == self.province else 'aggr'
         country = self.country if other.country == self.country else 'aggr'
+
+        # Only add resolved cases if both are positive.  A negative value means
+        # no information is available.
+        if self.resolved >= 0 and other.resolved >= 0:
+            resolved = self.resolved + other.resolved
+        else:
+            resolved = self.resolved
+
         return Cases(
             date=self.date,
             province=province,
             country=country,
             confirmed=self.confirmed + other.confirmed,
             deceased=self.deceased + other.deceased,
-            resolved=self.resolved + other.resolved
+            resolved=resolved
         )
 
 

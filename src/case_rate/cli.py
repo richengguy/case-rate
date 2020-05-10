@@ -11,8 +11,11 @@ from .report import SourceInfo
 from .storage import Storage
 
 
-def _parse_region_selector(region: str) -> Tuple[Optional[str], Optional[str]]:
+def _parse_region_selector(region: Optional[str]) -> Tuple[Optional[str], Optional[str]]:  # noqa: E501
     '''Parses the region selection format.'''
+    if region is None:
+        return (None, None)
+
     parts = region.split(':')
     if len(parts) == 1:
         return (parts[0], None)
@@ -188,8 +191,7 @@ def info(config: dict, country: Optional[str], details: bool):
     input_source = sources.init_source(config['storage'], False, country,
                                        config['sources'])
 
-    if country is not None:
-        country, province = _parse_region_selector(country)
+    country, province = _parse_region_selector(country)
 
     with Storage() as storage:
         storage.populate(input_source)
@@ -202,12 +204,16 @@ def info(config: dict, country: Optional[str], details: bool):
 
     if country is not None:
         click.echo(click.style('Country: ', bold=True) + country)
+    if province is not None:
+        click.echo(click.style('Province/State: ', bold=True) + province)
 
     click.echo(f'First: {cases[0].date}')
     click.echo(f'  - Confirmed: {cases[0].confirmed}')
+    click.echo(f'  - Recovered: {cases[0].resolved}')
     click.echo(f'  - Deceased:  {cases[0].deceased}')
     click.echo(f'Last:  {cases[-1].date}')
     click.echo(f'  - Confirmed: {cases[-1].confirmed}')
+    click.echo(f'  - Recovered: {cases[-1].resolved}')
     click.echo(f'  - Deceased:  {cases[-1].deceased}')
 
     if details:
