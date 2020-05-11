@@ -82,7 +82,7 @@ def _to_int(number: str) -> int:
     return int(number)
 
 
-class PHACSource(InputSource):
+class PublicHealthAgencyCanadaSource(InputSource):
     '''Uses reporting data published by the PHAC.
 
     This input source uses a CSV file that's regularly updated by the Public
@@ -119,7 +119,7 @@ class PHACSource(InputSource):
 
     @classmethod
     def name(cls) -> str:
-        return 'phac'
+        return 'public-health-agency-canada'
 
     @classmethod
     def details(cls) -> str:
