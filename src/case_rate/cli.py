@@ -10,6 +10,12 @@ from .dashboard import Dashboard, OutputType
 from .report import SourceInfo
 from .storage import Storage
 
+try:
+    import torch
+    _has_torch = True
+except ImportError:
+    _has_torch = False
+
 
 def _parse_region_selector(region: Optional[str]) -> Tuple[Optional[str], Optional[str]]:  # noqa: E501
     '''Parses the region selection format.'''
@@ -218,13 +224,49 @@ def info(config: dict, country: Optional[str], details: bool):
 
     if details:
         click.secho('Reporting: ', bold=True)
-        click.echo('{:>10} {:>10} {:>10}'.format('Date',
-                                                 'Confirmed',
-                                                 'Deaths'))
+        click.echo('{:>10} {:>10} {:>10} {:>10}'.format('Date',
+                                                        'Confirmed',
+                                                        'Recovered',
+                                                        'Deaths'))
         for case in cases:
-            click.echo('{:10} {:10} {:10}'.format(str(case.date),
-                                                  case.confirmed,
-                                                  case.deceased))
+            click.echo('{:10} {:10} {:10} {:10}'.format(str(case.date),
+                                                        case.confirmed,
+                                                        case.resolved,
+                                                        case.deceased))
+
+
+if _has_torch:
+    @main.command()
+    @click.argument('country', nargs=1)
+    @click.pass_obj
+    def modelling(config: dict, country: str):
+        '''Generate an SIR model for the given country/region.'''
+        input_source = sources.init_source(config['storage'], False, country,
+                                           config['sources'])
+
+        with Storage() as storage:
+            country, province = _parse_region_selector(country)
+            storage.populate(input_source)
+            cases = storage.cases(input_source, country=country,
+                                  province=province)
+            cases = filters.sum_by_date(cases)
+
+        import matplotlib.pyplot as plt
+        import numpy as np
+        confirmed = np.array([case.confirmed for case in cases])
+        recovered = np.array([case.resolved for case in cases])
+        deceased = np.array([case.deceased for case in cases])
+
+        plt.figure()
+        plt.plot(confirmed, label='Confirmed')
+        plt.plot(recovered, label='Recovered')
+        plt.plot(deceased, label='Deceased')
+        plt.legend()
+
+        plt.figure()
+        plt.plot(confirmed - (recovered + deceased))
+
+        plt.show()
 
 
 if __name__ == '__main__':
