@@ -41,14 +41,14 @@ def _to_date(date: str) -> datetime.date:
     Parameters
     ----------
     date : str
-        input date string of the form "DD-MM-YYYY"
+        input date string of the form "YYYY-MM-DD"
 
     Returns
     -------
     datetime.date
         output ``date`` object
     '''
-    dt = datetime.datetime.strptime(date, '%d-%m-%Y')
+    dt = datetime.datetime.strptime(date, '%Y-%m-%d')
     return dt.date()
 
 
@@ -82,36 +82,43 @@ def _to_int(number: str) -> int:
     return int(number)
 
 
-class PHACSource(InputSource):
-    '''Uses reporting data published by the PHAC.
+class PublicHealthOntarioSource(InputSource):
+    '''Uses reporting data published by Public Health Ontario.
 
-    This input source uses a CSV file that's regularly updated by the Public
-    Health Agency of Canada (PHAC).  The default source is
-    https://health-infobase.canada.ca/src/data/covidLive/covid19.csv.  The
-    data source will link back to the original PHAC site rather than to the
-    file.
-    '''
-    def __init__(self, path: PathLike, url: str, info: str,
-                 update: bool = True):
+    Public Health Ontario (PHO) publicizes its data via the Government of
+    Ontario's Data Catalogue.  The `Status of COVID-19 cases in Ontario`_
+    contains the original source data along with an API to access it.  This
+    downloads the full CSV to simplify the implementation.
+
+    .. _Status of COVID-19 cases in Ontario: https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario
+    '''  # noqa: E501
+    def __init__(self, path: PathLike, url: str = None,
+                 info: str = None, update: bool = True):
         '''
         Parameters
         ----------
         path : path-like object
             the path (on disk) where the CSV file is located
         url : str
-            the URL to the Government of Canada's COVID-19 report
+            the URL to PHO's COVID-19 report
         info : str optional
-            the URL to the main information path (not the CSV file)
+            the URL to the main information path (not the CSV file); not
+            provided then it uses the default link
         update : bool, optional
             if ``True`` then updates an existing CSV file to the latest version
         '''
+        if url is None:
+            raise ValueError('Missing data source URL.')
+        if info is None:
+            raise ValueError('Missing information URL.')
+
         path = pathlib.Path(path) / 'covid19.csv'
         if path.exists():
             if update:
-                click.echo('Updating PHAC COVID-19 report.')
+                click.echo('Updating PHO "Status of COVID-19 cases in Ontario" report.')  # noqa: E501
                 _download(url, path)
         else:
-            click.echo('Accessing PHAC COVID-19 report.')
+            click.echo('Accessing PHO "Status of COVID-19 cases in Ontario" report.')  # noqa: E501
             _download(url, path)
 
         self._info = info
@@ -119,11 +126,11 @@ class PHACSource(InputSource):
 
     @classmethod
     def name(cls) -> str:
-        return 'phac'
+        return 'public-health-ontario'
 
     @classmethod
     def details(cls) -> str:
-        return 'Public Health Agency of Canada - Current Situation'
+        return 'Public Health Ontario - Status of COVID-19 cases in Ontario'
 
     def url(self) -> str:
         return self._info
@@ -132,29 +139,23 @@ class PHACSource(InputSource):
         with self._path.open() as f:
             contents = csv.DictReader(f)
             for entry in contents:
-                if entry['prname'] == 'Canada':
-                    continue
-
                 yield Cases(
-                    date=_to_date(entry['date']),
-                    province=entry['prname'],
+                    date=_to_date(entry['Reported Date']),
+                    province='Ontario',
                     country='Canada',
-                    confirmed=_to_int(entry['numtotal']),
-                    resolved=_to_int(entry['numrecover']),
-                    deceased=_to_int(entry['numdeaths'])
+                    confirmed=_to_int(entry['Total Cases']),
+                    resolved=_to_int(entry['Resolved']),
+                    deceased=_to_int(entry['Deaths'])
                 )
 
     def testing(self) -> Generator[CaseTesting, None, None]:
         with self._path.open() as f:
             contents = csv.DictReader(f)
             for entry in contents:
-                if entry['prname'] == 'Canada':
-                    continue
-
                 yield CaseTesting(
-                    date=_to_date(entry['date']),
-                    province=entry['prname'],
+                    date=_to_date(entry['Reported Date']),
+                    province='Ontario',
                     country='Canada',
-                    tested=_to_int(entry['numtested']),
-                    under_investigation=-1
+                    tested=_to_int(entry['Total tests completed in the last day']),  # noqa: E501
+                    under_investigation=_to_int(entry['Under Investigation'])
                 )

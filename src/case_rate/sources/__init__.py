@@ -3,6 +3,7 @@ from typing import Optional
 
 from .jhu_csse import JHUCSSESource
 from .phac import PHACSource
+from .public_health_ontario import PublicHealthOntarioSource
 
 from ..storage import InputSource
 
@@ -15,7 +16,8 @@ __all__ = [
 
 DATA_SOURCES = {
     (None, None): JHUCSSESource,    # Default source
-    ('Canada', None): PHACSource    # Canada-specific source
+    ('Canada', None): PHACSource,   # Canada-specific source
+    ('Canada', 'Ontario'): PublicHealthOntarioSource  # Ontario-specific Source
 }
 
 
