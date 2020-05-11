@@ -7,6 +7,10 @@ storage = "./covid19-data"
 repo = "https://github.com/CSSEGISandData/COVID-19"
 
 # COVID-19 data from the Public Health Agency of Canada
-[sources.phac]
+[sources.public-health-agency-canada]
 url = "https://health-infobase.canada.ca/src/data/covidLive/covid19.csv"
 info = "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1"
+
+[sources.public-health-ontario]
+url = "https://data.ontario.ca/dataset/f4f86e54-872d-43f8-8a86-3892fd3cb5e6/resource/ed270bb8-340b-41f9-a7c6-e8ef587e6d11/download/covidtesting.csv"
+info = "https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario"

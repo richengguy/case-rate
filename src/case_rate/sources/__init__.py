@@ -2,7 +2,8 @@ import pathlib
 from typing import Optional
 
 from .jhu_csse import JHUCSSESource
-from .phac import PHACSource
+from .public_health_agency_canada import PublicHealthAgencyCanadaSource
+from .public_health_ontario import PublicHealthOntarioSource
 
 from ..storage import InputSource
 
@@ -14,8 +15,9 @@ __all__ = [
 
 
 DATA_SOURCES = {
-    (None, None): JHUCSSESource,    # Default source
-    ('Canada', None): PHACSource    # Canada-specific source
+    (None, None): JHUCSSESource,                       # Default source
+    ('Canada', None): PublicHealthAgencyCanadaSource,  # Canada-specific
+    ('Canada', 'Ontario'): PublicHealthOntarioSource   # Ontario-specific
 }
 
 

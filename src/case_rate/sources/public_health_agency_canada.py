@@ -1,7 +1,7 @@
 import csv
 import datetime
 import pathlib
-from typing import Generator, Optional
+from typing import Generator
 
 import click
 import requests
@@ -82,7 +82,7 @@ def _to_int(number: str) -> int:
     return int(number)
 
 
-class PHACSource(InputSource):
+class PublicHealthAgencyCanadaSource(InputSource):
     '''Uses reporting data published by the PHAC.
 
     This input source uses a CSV file that's regularly updated by the Public
@@ -91,33 +91,20 @@ class PHACSource(InputSource):
     data source will link back to the original PHAC site rather than to the
     file.
     '''
-    CSV_URL = 'https://health-infobase.canada.ca/src/data/covidLive/covid19.csv'  # noqa: E501
-    INFO_PAGE = 'https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1'  # noqa: E501
-
-    def __init__(self, path: PathLike, url: Optional[str] = None,
-                 info: Optional[str] = None, update: bool = True):
+    def __init__(self, path: PathLike, url: str, info: str,
+                 update: bool = True):
         '''
         Parameters
         ----------
         path : path-like object
             the path (on disk) where the CSV file is located
-        url : str, optional
-            the URL to the Government of Canada's COVID-19 report; if not
-            provided then it uses the default link
+        url : str
+            the URL to the Government of Canada's COVID-19 report
         info : str optional
-            the URL to the main information path (not the CSV file); not
-            provided then it uses the default link
+            the URL to the main information path (not the CSV file)
         update : bool, optional
             if ``True`` then updates an existing CSV file to the latest version
         '''
-        if url is None:
-            url = PHACSource.CSV_URL
-
-        if info is None:
-            self._info = PHACSource.INFO_PAGE
-        else:
-            self._info = info
-
         path = pathlib.Path(path) / 'covid19.csv'
         if path.exists():
             if update:
@@ -127,11 +114,12 @@ class PHACSource(InputSource):
             click.echo('Accessing PHAC COVID-19 report.')
             _download(url, path)
 
+        self._info = info
         self._path = path
 
     @classmethod
     def name(cls) -> str:
-        return 'phac'
+        return 'public-health-agency-canada'
 
     @classmethod
     def details(cls) -> str:
