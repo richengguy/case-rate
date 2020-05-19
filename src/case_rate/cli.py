@@ -11,7 +11,7 @@ from .report import SourceInfo
 from .storage import Storage
 
 try:
-    import torch
+    import torch  # noqa: F401
     _has_torch = True
 except ImportError:
     _has_torch = False

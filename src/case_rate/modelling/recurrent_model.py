@@ -14,6 +14,10 @@ class SimpleRecurrentNetwork(torch.nn.Module):
         the layer that processing the input to the RNN
     output_layer : module object
         the layer that generates the output of the RNN
+    window : int, read-only
+        the size of the filtering window expected by the network
+    features : int, read-only
+        the number of features for each sample
     '''
     def __init__(self, window: int, features: int, hidden: int = 64):
         '''
@@ -50,13 +54,21 @@ class SimpleRecurrentNetwork(torch.nn.Module):
         self.input_layer = torch.nn.Linear(input_size, hidden)
         self.output_layer = torch.nn.Linear(hidden, output_size)
 
+    @property
+    def window(self) -> int:
+        return self._window
+
+    @property
+    def features(self) -> int:
+        return self._dims
+
     def forward(self, sample: torch.Tensor) -> torch.Tensor:
         '''Apply the forward transform.
 
         Parameters
         ----------
         sample : torch.Tensor
-            the input sequence of size `(N, window, features)`
+            the input sequence of size `(N, features, window)`
 
         Returns
         -------
