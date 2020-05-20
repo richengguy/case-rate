@@ -1,3 +1,7 @@
+from typing import Tuple
+
+import numpy as np
+
 import torch
 import torch.nn
 import torch.nn.functional as F
@@ -8,8 +12,6 @@ class SimpleRecurrentNetwork(torch.nn.Module):
 
     Attributes
     ----------
-    hidden_state : torch.Tensor
-        a tensor containing the RNN's hidden state
     input_layer : module object
         the layer that processing the input to the RNN
     output_layer : module object
@@ -19,7 +21,8 @@ class SimpleRecurrentNetwork(torch.nn.Module):
     features : int, read-only
         the number of features for each sample
     '''
-    def __init__(self, window: int, features: int, hidden: int = 64):
+    def __init__(self, window: int, features: int, hidden: int = 64,
+                 batch: int = 1):
         '''
         Parameters
         ----------
@@ -31,6 +34,8 @@ class SimpleRecurrentNetwork(torch.nn.Module):
             of the input space
         hidden : int
             number of neurons in the hidden state (layer); default is 64
+        batch : int
+            the input batch size; default is '1'
 
         Raises
         ------
@@ -49,8 +54,8 @@ class SimpleRecurrentNetwork(torch.nn.Module):
         self._window = window
         self._dims = features
         self._hidden = hidden
+        self._batch = batch
 
-        self.hidden_state = torch.zeros(1, self._hidden)
         self.input_layer = torch.nn.Linear(input_size, hidden)
         self.output_layer = torch.nn.Linear(hidden, output_size)
 
@@ -62,31 +67,42 @@ class SimpleRecurrentNetwork(torch.nn.Module):
     def features(self) -> int:
         return self._dims
 
-    def forward(self, sample: torch.Tensor) -> torch.Tensor:
+    def forward(self,  sample: torch.Tensor,
+                hidden: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         '''Apply the forward transform.
 
         Parameters
         ----------
         sample : torch.Tensor
             the input sequence of size `(N, features, window)`
+        hidden : torch.Tensor
+            the RNN's hidden state vector; this should be obtained using the
+            :meth:`default_state` method
 
         Returns
         -------
         output : torch.Tensor
             the model's generated output
         '''
-        view = sample.view((-1, self._window*self._dims))
-        concat = torch.cat((view, self.hidden_state), 1)
+        sample = sample.reshape(-1, self._window*self._dims)
+        concat = torch.cat((sample, hidden), 1)
         hidden = torch.tanh(self.input_layer(concat))
-        output = F.relu(self.output_layer(hidden))
+        output = F.softplus(self.output_layer(hidden))
+        return output, hidden
 
-        self.hidden_state = hidden
-        return output
+    def default_state(self, initial_value: float = 1e-6):
+        '''Creates a new initial state vector.
 
-    def reset(self):
-        '''Reset the RNN's internal state.
+        This creates the initial conditions for the network.  It generates a
+        vector with a very small, but non-zero, norm.
 
-        This is done by zeroing out the hidden state.  It *does not* change the
-        model weights.
+        Parameters
+        ----------
+        initial_value : float
+            the initial value of the hidden state vector; defaults to it having
+            a norm of 1e-6
         '''
-        self.hidden_state = torch.zeros(1, self.hidden_state)
+        log_nrm = np.log(initial_value)
+        log_N = np.log(self._hidden)
+        log_init = 0.5*(2.0*log_nrm - log_N)
+        return np.exp(log_init)*torch.ones((self._batch, self._hidden))

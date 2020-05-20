@@ -33,36 +33,74 @@ class Trainer:
         float
             the negative log-likelihood after training the model on this sample
         '''
+        if data.ndim == 1:
+            data = data[np.newaxis, :]
+
         features, num_samples = data.shape
         window_size = self._model.window
         tensor_size = (1, features, num_samples + window_size - 1)
 
         # Generate the tensor that will be used during training.
         tensor = torch.zeros(tensor_size)
-        tensor[1, :, 0:window_size] = torch.tensor(data[:, 0])
-        tensor[1, :, window_size:-1] = torch.tensor(data)
+        tensor[0, :, 0:window_size] = torch.tensor(data[:, 0])
+        tensor[0, :, window_size:] = torch.tensor(data[:, 1:])
 
         # Train the model by getting it to predict the next value in an integer
         # sequence, under the assumption that the data are integer-valued and
         # represent counts.
+        hidden = self._model.default_state()
+        self._model.train()
         self._optim.zero_grad()
 
-        likelihood = 0
+        loglikelihood = 0
         for i in range(window_size, num_samples-1):
             i_min = i - window_size
-            window = torch[:, :, i_min:i]
+            window = tensor[:, :, i_min:i]
 
             # Get the estimates of the Poisson 'lambda' parameter and the next
             # actual value.
-            lambda_ = self._model(window)
+            lambda_, hidden = self._model(window, hidden)
             k = tensor[:, :, i+1]
 
             # Compute the likelihood of the predicted lambda for the actual
             # value.
-            likelihood += k*torch.log(lambda_) - lambda_ - torch.lgamma(k + 1)
+            loglikelihood += k*torch.log(lambda_) - lambda_ - torch.lgamma(k+1)
 
-        neglikelihood = -likelihood
+        neglikelihood = -loglikelihood / num_samples
         neglikelihood.backward()
         self._optim.step()
 
-        return neglikelihood
+        return neglikelihood.item()
+
+    def predict(self, data: np.ndarray) -> np.ndarray:
+        '''Run the model on the given data.'''
+        if data.ndim == 1:
+            data = data[np.newaxis, :]
+
+        features, num_samples = data.shape
+        window_size = self._model.window
+        tensor_size = (1, features, num_samples + window_size - 1)
+
+        # Generate the tensor that will be used during training.
+        tensor = torch.zeros(tensor_size)
+        tensor[0, :, 0:window_size] = torch.tensor(data[:, 0])
+        tensor[0, :, window_size:] = torch.tensor(data[:, 1:])
+
+        # Train the model by getting it to predict the next value in an integer
+        # sequence, under the assumption that the data are integer-valued and
+        # represent counts.
+        hidden = self._model.default_state()
+        self._model.eval()
+
+        output = [0]*(window_size)
+        for i in range(window_size, num_samples-1):
+            i_min = i - window_size
+            window = tensor[:, :, i_min:i]
+
+            # Get the estimates of the Poisson 'lambda' parameter and the next
+            # actual value.
+            lambda_, hidden = self._model(window, hidden)
+
+            output.append(lambda_.item())
+
+        return np.array(output)
