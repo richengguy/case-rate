@@ -8,6 +8,7 @@ except ImportError:
 
 from case_rate.modelling.network import PrefilterNetwork
 
+
 class TestPrefilterNetwork:
     def test_correct_padding(self):
         signal = torch.zeros(3, 50)
