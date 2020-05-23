@@ -1,3 +1,4 @@
+import math
 from typing import Tuple
 
 import numpy as np
@@ -5,6 +6,61 @@ import numpy as np
 import torch
 import torch.nn
 import torch.nn.functional as F
+
+
+class PrefilterNetwork(torch.nn.Module):
+    '''A single-layer CNN designed to filter a timeseries signal.
+
+    Attributes
+    ----------
+    weight : torch.Tensor
+        the model's weights tensor
+    bias : torch.Tensor
+        the model's bias vector
+    '''
+    def __init__(self, window: int, features: int):
+        '''
+        Parameters
+        ----------
+        window : int
+            size of the filtering window
+        features : int
+            number of features at each sample
+        '''
+        super().__init__()
+        filter_size = (1, features, window)
+
+        # Create the model parameters.
+        self.weight = torch.nn.Parameter(torch.empty(filter_size,
+                                                     requires_grad=True))
+        self.bias = torch.nn.Parameter(torch.empty(1, requires_grad=True))
+
+        # Initialize the weights.
+        k = math.sqrt(1/(features*window))
+        torch.nn.init.kaiming_uniform_(self.weight, nonlinearity='relu')
+        torch.nn.init.uniform_(self.bias, -k, k)
+
+    def forward(self, timeseries: torch.Tensor) -> torch.Tensor:
+        '''Apply a forward pass of the network.
+
+        The filter compresses the time series input features from :math:`F`
+        dimensions to :math:`1`.  It also doesn't use any padding, so the
+        output length is smaller than the input.
+
+        Parameters
+        ----------
+        timeseries : torch.Tensor
+            the input :math:`F \\times N` time series
+
+        Returns
+        -------
+        torch.Tensor
+            the filtered time series of length :math:`1 \\times (N - W - 1)`
+        '''
+        timeseries = timeseries.unsqueeze(0)
+        filtered = F.conv1d(timeseries, self.weight, self.bias)
+        output = F.relu(filtered)
+        return output.squeeze(0)
 
 
 class SimpleRecurrentNetwork(torch.nn.Module):
