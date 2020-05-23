@@ -28,6 +28,11 @@ class PrefilterNetwork(torch.nn.Module):
             number of features at each sample
         '''
         super().__init__()
+        if window < 1:
+            raise ValueError('Window size must be greater than zero.')
+        if features < 1:
+            raise ValueError('Dimensionality must be greater than zero.')
+
         filter_size = (1, features, window)
 
         # Create the model parameters.
