@@ -26,13 +26,22 @@ class PrefilterNetwork(torch.nn.Module):
         ----------
         features : int
             number of features at each sample
-        initial_alpha : float
+        initial_alpha : float, optional
             the initial smoothing value, used for the internal first-order IIR
-            filter
+            filter, default is 0.95 and *must* be on :math:`[0, 1)` for the
+            filter to be stable
+
+        Raises
+        ------
+        ValueError
+            if the number of features is not greater than 0 or if the initial
+            :math:`\\alpha < 0` or :math:`\\alpha \\ge 1`
         '''
         super().__init__()
         if features < 1:
             raise ValueError('Dimensionality must be greater than zero.')
+        if initial_alpha < 0 or initial_alpha >= 1:
+            raise ValueError('Alpha must be on [0, 1).')
 
         self._buffer_size = (1, features, 1)
         self._features = features

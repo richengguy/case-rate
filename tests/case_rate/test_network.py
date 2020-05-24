@@ -13,36 +13,40 @@ from case_rate.modelling.network import SimpleRecurrentNetwork
 class TestPrefilterNetwork:
     def test_single_sample(self):
         signal = torch.zeros(1, 5)
-        network = PrefilterNetwork(5, 1)
-        assert network.pass_through
-        assert network.features == 1
-        assert network.kernel_size == 1
+        signal[0, 0] = 1.0
 
-        filtered = network(signal)
-        assert filtered.ndim == 2
+        network = PrefilterNetwork(1)
+        assert network.features == 1
+        assert network.alpha == 0.95
+
+        filtered = network(signal[0, 1], signal[0, 0])
+        assert filtered.ndim == 1
         assert filtered.shape[0] == 1
-        assert filtered.shape[1] == 5
+        assert torch.isclose(filtered, torch.Tensor([0.05]))
 
     def test_correct_padding(self):
         signal = torch.zeros(3, 50)
-        network = PrefilterNetwork(5, 3)
-        assert not network.pass_through
+        network = PrefilterNetwork(3)
         assert network.features == 3
-        assert network.kernel_size == 5
+        assert network.alpha.allclose(torch.tensor([0.95, 0.95, 0.95]))
 
-        filtered = network(signal)
-        assert filtered.ndim == 2
-        assert filtered.shape[0] == 1
-        assert filtered.shape[1] == 46
+        filtered = network(signal[:, 1], signal[:, 0])
+        assert filtered.ndim == 1
+        assert filtered.shape[0] == 3
 
     def test_bad_init(self):
+        # Invalid number of features.
         with pytest.raises(ValueError):
-            PrefilterNetwork(0, 1)
+            PrefilterNetwork(0)
+
+        # Invalid initial alpha.
+        with pytest.raises(ValueError):
+            PrefilterNetwork(1, initial_alpha=-1)
 
         with pytest.raises(ValueError):
-            PrefilterNetwork(1, 0)
+            PrefilterNetwork(1, initial_alpha=2)
 
-        PrefilterNetwork(1, 1)
+        PrefilterNetwork(1, 0.5)
 
 
 class TestSimpleRecurrentNetwork:
