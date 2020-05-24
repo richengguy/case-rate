@@ -98,7 +98,7 @@ class Model:
         learning_rate : int, optional
             learning rate used for the model's optimizer
         '''
-        self.prefilter = PrefilterNetwork(window, features)
+        self.prefilter = PrefilterNetwork(features)
         self.predictor = SimpleRecurrentNetwork(features, hidden)
         self.optim = torch.optim.AdamW([
             {'params': self.prefilter.parameters()},
@@ -127,23 +127,30 @@ class Model:
 
         loss = 0
 
-        start = self.prefilter.kernel_size
-        samples = timeseries.shape[1]
+        filtered = timeseries[:, 0]
+        hidden = self.predictor.default_state()
+        for i in range(1, timeseries.shape[1]-1):
+            filtered = self.prefilter(timeseries[:, i], filtered)
+            lmbda, hidden = self.predictor(filtered, hidden)
+            loss += -likelihood(lmbda, timeseries[:, i+1])
 
-        for i in range(start, samples):
-            window = timeseries[:, i-start:i]
-            predicted = self._predict_next(window)
-            actual = timeseries[:, i]
+        # start = self.prefilter.kernel_size
+        # samples = timeseries.shape[1]
 
-            loss += -likelihood(predicted, actual)
-            if not self.prefilter.pass_through:
-                filter_sum = self.prefilter.weight.sum()
-                loss += error(filter_sum, 1)
+        # for i in range(start, samples):
+        #     window = timeseries[:, i-start:i]
+        #     predicted = self._predict_next(window)
+        #     actual = timeseries[:, i]
+
+        #     loss += -likelihood(predicted, actual)
+        #     if not self.prefilter.pass_through:
+        #         filter_sum = self.prefilter.weight.sum()
+        #         loss += error(filter_sum, 1)
 
         loss.backward()
         self.optim.step()
 
-        return loss.item() / (samples - start)
+        return loss.item() / (timeseries.shape[1]-2)
 
     def _predict_next(self, timeseries: torch.Tensor) -> torch.Tensor:
         '''Predict the next sample in the timeseries.
@@ -158,11 +165,18 @@ class Model:
         torch.Tensor
             predicted sample
         '''
-        filtered = self.prefilter(timeseries)
+        filtered = timeseries[:, 0]
         hidden = self.predictor.default_state()
-        for i in range(filtered.shape[1]):
-            lmbda, hidden = self.predictor(filtered[0, i], hidden)
+        for i in range(1, timeseries.shape[1]):
+            filtered = self.prefilter(timeseries[:, i], filtered)
+            lmbda, hidden = self.predictor(filtered, hidden)
         return lmbda
+
+        # filtered = self.prefilter(timeseries)
+        # hidden = self.predictor.default_state()
+        # for i in range(filtered.shape[1]):
+        #     lmbda, hidden = self.predictor(filtered[0, i], hidden)
+        # return lmbda
 
     def reconstruct(self, timeseries: np.ndarray) -> np.ndarray:
         '''Reconstructs the sequence using the trained model.
@@ -180,16 +194,19 @@ class Model:
         '''
         with torch.no_grad():
             timeseries = self._prep_input(timeseries)
-            hidden = self.predictor.default_state()
-            filtered = self.prefilter(timeseries)
+            filtered = timeseries.clone()
+            for i in range(1, timeseries.shape[1]):
+                filtered[:, i] = self.prefilter(timeseries[:, i],
+                                                filtered[:, i-1])
 
             storage = torch.empty_like(filtered)
+            hidden = self.predictor.default_state()
             for i in range(filtered.shape[1]):
                 lmbda, hidden = self.predictor(filtered[0, i], hidden)
                 storage[:, i] = lmbda
 
-        output = np.zeros(timeseries.shape)
-        output[:, self.prefilter.kernel_size-1:] = storage.numpy()
+        # output = np.zeros(timeseries.shape)
+        output = storage.numpy()
         return output.squeeze()
 
     def _prep_input(self, timeseries: np.ndarray) -> torch.Tensor:

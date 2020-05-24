@@ -9,87 +9,64 @@ import torch.nn.functional as F
 
 
 class PrefilterNetwork(torch.nn.Module):
-    '''A single-layer CNN designed to filter a timeseries signal.
+    '''A simple filter used to preprocess the time series before prediction.
 
     Attributes
     ----------
-    weight : torch.Tensor
-        the model's weights tensor
-    bias : torch.Tensor
-        the model's bias vector
+    alpha : torch.Tensor
+        a :math:`F`-length tensor containing the exponential smoothing weights
     features : int, readonly
         dimensionality of the input feature space
     window : int, readonly
         size of the filtering window
     '''
-    def __init__(self, window: int, features: int):
+    def __init__(self, features: int, initial_alpha: float = 0.95):
         '''
         Parameters
         ----------
-        window : int
-            size of the filtering window
         features : int
             number of features at each sample
+        initial_alpha : float
+            the initial smoothing value, used for the internal first-order IIR
+            filter
         '''
         super().__init__()
-        if window < 1:
-            raise ValueError('Window size must be greater than zero.')
         if features < 1:
             raise ValueError('Dimensionality must be greater than zero.')
 
-        filter_size = (1, features, window)
+        self._buffer_size = (1, features, 1)
         self._features = features
-        self._window = window
-
-        # Enable passthrough mode if the number of features is '1', since the
-        # CNN isn't going any sort of feature reduction.
-        self.pass_through = features == 1
 
         # Create the model parameters.
-        self.weight = torch.nn.Parameter(torch.empty(filter_size,
-                                                     requires_grad=True))
-        self.bias = torch.nn.Parameter(torch.empty(1, requires_grad=True))
+        self.alpha = torch.nn.Parameter(initial_alpha*torch.ones(features))
 
-        # Initialize the weights.
-        k = math.sqrt(1/(features*window))
-        torch.nn.init.kaiming_uniform_(self.weight, nonlinearity='relu')
-        torch.nn.init.uniform_(self.bias, -k, k)
+        # # Initialize the weights.
+        # k = math.sqrt(1/(features))
+        # torch.nn.init.kaiming_uniform_(self.weight, nonlinearity='relu')
+        # torch.nn.init.uniform_(self.bias, -k, k)
 
     @property
     def features(self) -> int:
         return self._features
 
-    @property
-    def kernel_size(self) -> int:
-        if self.pass_through:
-            return 1
-        else:
-            return self._window
-
-    def forward(self, timeseries: torch.Tensor) -> torch.Tensor:
+    def forward(self, sample: torch.Tensor,
+                previous: torch.Tensor) -> torch.Tensor:
         '''Apply a forward pass of the network.
-
-        The filter compresses the time series input features from :math:`F`
-        dimensions to :math:`1`.  It also doesn't use any padding, so the
-        output length is smaller than the input.
 
         Parameters
         ----------
-        timeseries : torch.Tensor
-            the input :math:`(F, N)` time series
+        sample : torch.Tensor
+            a :math:`F`-length vector containing the current time series sample
+        previonus : torch.Tensor
+            a :math:`F`-length vector containing the *previous* output of this
+            filter
 
         Returns
         -------
         torch.Tensor
             the filtered time series of length :math:`(1, N - W - 1)`
         '''
-        if self.pass_through:
-            return timeseries
-
-        timeseries = timeseries.unsqueeze(0)
-        filtered = F.conv1d(timeseries, self.weight, self.bias)
-        output = F.relu(filtered)
-        return output.squeeze(0)
+        return self.alpha*sample + (1 - self.alpha)*previous
 
 
 class SimpleRecurrentNetwork(torch.nn.Module):
