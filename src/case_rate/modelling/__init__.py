@@ -1,3 +1,2 @@
 # flake8: noqa
-from .network import SimpleRecurrentNetwork
-from .training import Trainer
+from .model import Model
