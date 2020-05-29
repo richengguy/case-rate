@@ -1,0 +1,20 @@
+[modelling]
+database = "covid19-model.sdb"
+
+[modelling.training]
+lookahead_window = 1
+learning_rate = 0.01
+initial_alpha = 0.95
+hidden_states = 128
+regions = [
+    "Canada:Alberta",
+    "Canada:British Columbia",
+    "Canada:Manitoba",
+    "Canada:New Brunswick",
+    "Canada:Newfoundland and Labrador",
+    "Canada:Nova Scotia",
+    "Canada:Ontario",
+    "Canada:Prince Edward Island",
+    "Canada:Quebec",
+    "Canada:Saskatchewan"
+]
