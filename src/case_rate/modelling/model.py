@@ -84,13 +84,11 @@ class Model:
         a *very* simple RNN that will attempt to predict the next value in the
         input sequence, given the output from the prefilter
     '''
-    def __init__(self, window: int, features: int, hidden: int = 64,
+    def __init__(self, features: int, hidden: int = 64,
                  learning_rate: float = 0.01):
         '''
         Parameters
         ----------
-        window : int
-            size of the filtering window for the prefilter
         features : int
             the dimensionality of each sample in the time series
         hidden : int, optional
@@ -122,9 +120,7 @@ class Model:
         timeseries = self._prep_input(timeseries)
         self.optim.zero_grad()
 
-        error = SquaredError()
         likelihood = PoissonLikelihood()
-
         loss = 0
 
         filtered = timeseries[:, 0]
@@ -133,19 +129,6 @@ class Model:
             filtered = self.prefilter(timeseries[:, i], filtered)
             lmbda, hidden = self.predictor(filtered, hidden)
             loss += -likelihood(lmbda, timeseries[:, i+1])
-
-        # start = self.prefilter.kernel_size
-        # samples = timeseries.shape[1]
-
-        # for i in range(start, samples):
-        #     window = timeseries[:, i-start:i]
-        #     predicted = self._predict_next(window)
-        #     actual = timeseries[:, i]
-
-        #     loss += -likelihood(predicted, actual)
-        #     if not self.prefilter.pass_through:
-        #         filter_sum = self.prefilter.weight.sum()
-        #         loss += error(filter_sum, 1)
 
         loss.backward()
         self.optim.step()
@@ -171,12 +154,6 @@ class Model:
             filtered = self.prefilter(timeseries[:, i], filtered)
             lmbda, hidden = self.predictor(filtered, hidden)
         return lmbda
-
-        # filtered = self.prefilter(timeseries)
-        # hidden = self.predictor.default_state()
-        # for i in range(filtered.shape[1]):
-        #     lmbda, hidden = self.predictor(filtered[0, i], hidden)
-        # return lmbda
 
     def reconstruct(self, timeseries: np.ndarray) -> np.ndarray:
         '''Reconstructs the sequence using the trained model.
@@ -205,7 +182,6 @@ class Model:
                 lmbda, hidden = self.predictor(filtered[0, i], hidden)
                 storage[:, i] = lmbda
 
-        # output = np.zeros(timeseries.shape)
         output = storage.numpy()
         return output.squeeze()
 
