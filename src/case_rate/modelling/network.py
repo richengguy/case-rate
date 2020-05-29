@@ -49,11 +49,6 @@ class PrefilterNetwork(torch.nn.Module):
         # Create the model parameters.
         self.alpha = torch.nn.Parameter(initial_alpha*torch.ones(features))
 
-        # # Initialize the weights.
-        # k = math.sqrt(1/(features))
-        # torch.nn.init.kaiming_uniform_(self.weight, nonlinearity='relu')
-        # torch.nn.init.uniform_(self.bias, -k, k)
-
     @property
     def features(self) -> int:
         return self._features
