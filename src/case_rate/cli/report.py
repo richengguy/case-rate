@@ -4,7 +4,7 @@ import webbrowser
 
 import click
 
-from ._helpers import _parse_region_selector
+from ._helpers import parse_region_selector
 from .. import sources
 from ..dashboard import Dashboard, OutputType
 from ..report import SourceInfo
@@ -66,7 +66,7 @@ def command(config: dict, countries: Tuple[str], output: str,
 
         data = {}
         for region in countries:
-            country, province = _parse_region_selector(region)
+            country, province = parse_region_selector(region)
             data[region] = storage.cases(input_sources[region],
                                          country=country, province=province)
 

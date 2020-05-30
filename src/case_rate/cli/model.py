@@ -1,6 +1,6 @@
 import click
 
-from ._helpers import _parse_region_selector
+from ._helpers import parse_region_selector
 from .. import sources
 from .. import filters
 from ..storage import Storage
@@ -15,7 +15,7 @@ def command(config: dict, country: str):
                                        config['sources'])
 
     with Storage() as storage:
-        country, province = _parse_region_selector(country)
+        country, province = parse_region_selector(country)
         storage.populate(input_source)
         cases = storage.cases(input_source, country=country,
                               province=province)

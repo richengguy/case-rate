@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 
 
-def _parse_region_selector(region: Optional[str]) -> Tuple[Optional[str], Optional[str]]:  # noqa: E501
+def parse_region_selector(region: Optional[str]) -> Tuple[Optional[str], Optional[str]]:  # noqa: E501
     '''Parses the region selection format.'''
     if region is None:
         return (None, None)

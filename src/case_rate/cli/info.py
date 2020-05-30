@@ -2,7 +2,7 @@ from typing import Optional
 
 import click
 
-from ._helpers import _parse_region_selector
+from ._helpers import parse_region_selector
 from .. import filters
 from .. import sources
 from ..storage import Storage
@@ -22,7 +22,7 @@ def command(config: dict, country: Optional[str], details: bool):
     input_source = sources.init_source(config['storage'], False, country,
                                        config['sources'])
 
-    country, province = _parse_region_selector(country)
+    country, province = parse_region_selector(country)
 
     with Storage() as storage:
         storage.populate(input_source)
