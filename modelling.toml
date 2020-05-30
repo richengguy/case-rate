@@ -6,6 +6,9 @@ lookahead_window = 1
 learning_rate = 0.01
 initial_alpha = 0.95
 hidden_states = 128
+features = [
+    "confirmed"
+]
 regions = [
     "Canada:Alberta",
     "Canada:British Columbia",

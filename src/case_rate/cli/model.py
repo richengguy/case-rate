@@ -6,7 +6,7 @@ from .. import filters
 from ..storage import Storage
 
 
-@click.command('modelling')
+@click.command('model')
 @click.argument('country', nargs=1)
 @click.pass_obj
 def command(config: dict, country: str):

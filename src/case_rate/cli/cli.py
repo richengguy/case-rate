@@ -45,8 +45,8 @@ main.add_command(report.command)
 main.add_command(sources.command)
 
 if _has_torch:
-    from . import modelling
-    main.add_command(modelling.command)
+    from . import model
+    main.add_command(model.command)
 
 
 if __name__ == '__main__':
