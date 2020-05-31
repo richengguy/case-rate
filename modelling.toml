@@ -7,9 +7,9 @@ learning_rate = 0.01
 regions = [
     "Canada:Alberta",
     "Canada:British Columbia",
-    "Canada:Manitoba",
+    # "Canada:Manitoba",
     "Canada:New Brunswick",
-    "Canada:Newfoundland and Labrador",
+    # "Canada:Newfoundland and Labrador",
     "Canada:Nova Scotia",
     "Canada:Ontario",
     "Canada:Prince Edward Island",

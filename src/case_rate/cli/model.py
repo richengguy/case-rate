@@ -2,9 +2,13 @@ import pathlib
 import random
 from typing import Dict, List, Tuple
 
+import bokeh.io
+import bokeh.layouts
+import bokeh.plotting
 import click
 import numpy as np
 import toml
+import torch
 import torch.utils.tensorboard
 
 from ._helpers import echo_item, parse_region_selector
@@ -75,10 +79,13 @@ def _generate_dataset(storage: Storage, regions: List[str],
 @click.command('model')
 @click.option('--tensorboard', is_flag=True,
               help='Write training status to tensorboard.')
+@click.option('--training-report', is_flag=True,
+              help='Generate a training report.')
 @click.argument('settings_path', metavar='SETTINGS',
                 type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.pass_obj
-def command(config: dict, tensorboard: bool, settings_path: str):
+def command(config: dict, tensorboard: bool, training_report: bool,
+            settings_path: str):
     '''Train an ARIMA-like RNN model on given COVID-19 case data.
 
     The model attempts to predict the number of case count N-days into the
@@ -136,12 +143,42 @@ def command(config: dict, tensorboard: bool, settings_path: str):
                 region_loss = model.train(training_data[region])
                 batch_loss += region_loss
                 if tensorboard:
-                    writer.add_scalar('Region Loss', region_loss, region_index)
+                    writer.add_scalar('Loss/Region', region_loss, region_index)
                     region_index += 1
 
             loss.append(batch_loss / len(batch))
             if tensorboard:
-                writer.add_scalar('Batch Loss', loss[-1], epoch)
+                writer.add_scalar('Loss/Batch', loss[-1], epoch)
+                with torch.no_grad():
+                    writer.add_scalar(
+                        'Param/alpha', model.prefilter.alpha.detach().numpy(),
+                        epoch)
 
     if tensorboard:
         writer.close()
+
+    # Generate a Bokeh "report".
+    if training_report:
+        bokeh.io.output_file('training.html', title='Training Report')
+        original = training_data[('Canada', 'Ontario')]
+        recovered = model.reconstruct(original)
+
+        s1 = bokeh.plotting.figure()
+        s1.line(np.arange(original.shape[1]), original.squeeze())
+        s1.line(np.arange(recovered.shape[0]), recovered.squeeze(),
+                line_width=2, line_color='orange')
+
+        s2 = bokeh.plotting.figure()
+        s2.line(np.arange(original.shape[1]), original.squeeze())
+
+        with torch.no_grad():
+            ts = model._prep_input(original)
+            y = ts.clone()
+            for i in range(1, ts.shape[1]):
+                y[:, i] = model.prefilter(ts[:, i], y[:, i-1])
+
+            y = y.squeeze().numpy()
+            s2.line(np.arange(y.shape[0]), y, line_width=2,
+                    line_color='orange')
+
+        bokeh.io.show(bokeh.layouts.column(s1, s2))
