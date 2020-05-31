@@ -2,13 +2,8 @@
 database = "covid19-model.sdb"
 
 [modelling.training]
-lookahead_window = 1
+epochs = 5000
 learning_rate = 0.01
-initial_alpha = 0.95
-hidden_states = 128
-features = [
-    "confirmed"
-]
 regions = [
     "Canada:Alberta",
     "Canada:British Columbia",
@@ -20,4 +15,13 @@ regions = [
     "Canada:Prince Edward Island",
     "Canada:Quebec",
     "Canada:Saskatchewan"
+]
+
+
+[modelling.configuration]
+lookahead_window = 1
+initial_alpha = 0.95
+hidden_states = 128
+features = [
+    "confirmed"
 ]
