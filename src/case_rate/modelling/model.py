@@ -1,8 +1,10 @@
 import numpy as np
 
+import torch
 import torch.nn
 import torch.optim
 
+from .._types import PathLike
 from .network import PrefilterNetwork, SimpleRecurrentNetwork
 
 
@@ -84,18 +86,26 @@ class Model:
         a *very* simple RNN that will attempt to predict the next value in the
         input sequence, given the output from the prefilter
     '''
-    def __init__(self, features: int, hidden: int = 64,
+    def __init__(self, features: int, lookahead: int, hidden: int = 64,
                  learning_rate: float = 0.01):
         '''
         Parameters
         ----------
         features : int
             the dimensionality of each sample in the time series
+        lookahead : int
+            the number of samples ahead (i.e. days) that the predictor should
+            try to predict based on past data
         hidden : int, optional
             size of the hidden layer within the RNN, default is 64
         learning_rate : int, optional
             learning rate used for the model's optimizer
         '''
+        self._features = features
+        self._hidden = hidden
+        self._learning_rate = learning_rate
+        self._lookahead = lookahead
+
         self.prefilter = PrefilterNetwork(features)
         self.predictor = SimpleRecurrentNetwork(features, hidden)
         self.optim = torch.optim.AdamW([
@@ -211,6 +221,55 @@ class Model:
 
         filtered = filtered.numpy()
         return filtered.squeeze()
+
+    def save(self, path: PathLike):
+        '''Save the model to disk.
+
+        The model is saved using the :func:`torch.save` function.  The
+        resulting file is in the standard Python pickle format.
+
+        Parameters
+        ----------
+        path : path-like object
+            a string or :class:`Path` with the name of the output file; if it
+            exists then it will be overwritten
+        '''
+        model = {
+            'prefilter': self.prefilter.state_dict(),
+            'predictor': self.predictor.state_dict(),
+            'optimizer': self.optim.state_dict(),
+            'configuration': {
+                'features': self._features,
+                'lookahead': self._lookahead,
+                'hidden': self._hidden,
+                'learning_rate': self._learning_rate
+            }
+        }
+        torch.save(model, path)
+
+    @staticmethod
+    def load(path: PathLike) -> 'Model':
+        '''Load a model from a PyTorch '.pth' file.
+
+        This uses :func:`torch.load`, which performs a standard unpickling
+        operation on the data in the file.
+
+        Parameters
+        ----------
+        path : path-like object
+            path to the model file
+
+        Returns
+        -------
+        :class:`Model`
+            the loaded model instance
+        '''
+        serialized = torch.load(path)
+        model = Model(**serialized['configuration'])
+        model.prefilter.load_state_dict(serialized['prefilter'])
+        model.predictor.load_state_dict(serialized['predictor'])
+        model.optim.load_state_dict(serialized['optimizer'])
+        return model
 
     def _prep_input(self, timeseries: np.ndarray) -> torch.Tensor:
         '''Prepares the external NumPy format data for processing.

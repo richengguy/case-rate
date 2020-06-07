@@ -135,11 +135,13 @@ def _training_report(output: str, model: Model, loss: List[float],
               help='Write training status to tensorboard.')
 @click.option('--training-report', is_flag=True,
               help='Generate a training report.')
+@click.option('--output', '-o', 'model_path', type=click.Path(dir_okay=False),
+              help='Output location for the saved model.', default='model.pth')
 @click.argument('settings_path', metavar='SETTINGS',
                 type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.pass_obj
 def command(config: dict, tensorboard: bool, training_report: bool,
-            settings_path: str):
+            model_path: str, settings_path: str):
     '''Train an ARIMA-like RNN model on given COVID-19 case data.
 
     The model attempts to predict the number of case count N-days into the
@@ -184,7 +186,9 @@ def command(config: dict, tensorboard: bool, training_report: bool,
         region_index = 0
 
     loss = []
-    model = Model(len(model_config['features']), model_config['hidden_states'],
+    model = Model(len(model_config['features']),
+                  model_config['lookahead_window'],
+                  model_config['hidden_states'],
                   training_config['learning_rate'])
 
     click.secho('Training:', bold=True)
@@ -207,6 +211,8 @@ def command(config: dict, tensorboard: bool, training_report: bool,
                     writer.add_scalar(
                         'Param/alpha', model.prefilter.alpha.detach().numpy(),
                         epoch)
+
+    model.save('model.pth')
 
     if tensorboard:
         writer.close()
