@@ -76,6 +76,60 @@ def _generate_dataset(storage: Storage, regions: List[str],
     return training_data
 
 
+def _training_report(output: str, model: Model, loss: List[float],
+                     samples: Dict[_RegionKey, np.ndarray]):
+    '''Generates a training report.
+
+    Parameters
+    ----------
+    output : str
+        name of the output file
+    model : :class:`Model`
+        the trained model
+    loss : list of float
+        batch losses during training
+    samples : dict
+        samples used to show prediction/filtering performance
+    '''
+    alpha = model.prefilter.alpha.detach().item()
+    bokeh.io.output_file(output, title='Training Report')
+
+    loss_fig = bokeh.plotting.figure(
+        x_axis_label='Epoch',
+        y_axis_label='Loss',
+        y_axis_type='log',
+        title='Training Loss'
+    )
+    loss_fig.line(range(len(loss)), loss)
+
+    samples_layout = []
+    for region, original in samples.items():
+        recovered = model.reconstruct(original)
+
+        prediction = bokeh.plotting.figure(title=':'.join(region))
+        prediction.line(np.arange(original.shape[1]), original.squeeze(),
+                        legend_label='Original')
+        prediction.line(np.arange(recovered.shape[0]), recovered.squeeze(),
+                        line_width=2, line_color='orange',
+                        legend_label='Predicted Lambda')
+
+        smoothed = bokeh.plotting.figure(title=':'.join(region))
+        smoothed.line(np.arange(original.shape[1]), original.squeeze(),
+                      legend_label='Original')
+        smoothed.line(np.arange(original.shape[1]), model.filter(original),
+                      line_width=2, line_color='green',
+                      legend_label=f'Filtered (a={alpha:.2})')
+
+        samples_layout.append([prediction, smoothed])
+
+    bokeh.io.show(
+        bokeh.layouts.grid([
+            [loss_fig],
+            [samples_layout]
+        ])
+    )
+
+
 @click.command('model')
 @click.option('--tensorboard', is_flag=True,
               help='Write training status to tensorboard.')
@@ -159,26 +213,9 @@ def command(config: dict, tensorboard: bool, training_report: bool,
 
     # Generate a Bokeh "report".
     if training_report:
-        bokeh.io.output_file('training.html', title='Training Report')
-        original = training_data[('Canada', 'Ontario')]
-        recovered = model.reconstruct(original)
-
-        s1 = bokeh.plotting.figure()
-        s1.line(np.arange(original.shape[1]), original.squeeze())
-        s1.line(np.arange(recovered.shape[0]), recovered.squeeze(),
-                line_width=2, line_color='orange')
-
-        s2 = bokeh.plotting.figure()
-        s2.line(np.arange(original.shape[1]), original.squeeze())
-
-        with torch.no_grad():
-            ts = model._prep_input(original)
-            y = ts.clone()
-            for i in range(1, ts.shape[1]):
-                y[:, i] = model.prefilter(ts[:, i], y[:, i-1])
-
-            y = y.squeeze().numpy()
-            s2.line(np.arange(y.shape[0]), y, line_width=2,
-                    line_color='orange')
-
-        bokeh.io.show(bokeh.layouts.column(s1, s2))
+        samples = {
+            ('Canada', 'Alberta'): training_data[('Canada', 'Alberta')],
+            ('Canada', 'Ontario'): training_data[('Canada', 'Ontario')],
+            ('Canada', 'Quebec'): training_data[('Canada', 'Quebec')],
+        }
+        _training_report('training.html', model, loss, samples)

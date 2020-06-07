@@ -185,6 +185,33 @@ class Model:
         output = storage.numpy()
         return output.squeeze()
 
+    def filter(self, timeseries: np.ndarray) -> np.ndarray:
+        '''Runs the tuned IIR pre-filter on the time series.
+
+        This can be useful to see what the network thinks is the optimal
+        filtering needed to perform the prediction.
+
+        Parameters
+        ----------
+        timeseries : np.ndarray
+            a :math:`(F, N)` array of :math:`N` samples with :math:`F` features
+            each
+
+        Returns
+        -------
+        np.ndarray
+            the filtered timeseries
+        '''
+        with torch.no_grad():
+            timeseries = self._prep_input(timeseries)
+            filtered = timeseries.clone()
+            for i in range(1, timeseries.shape[1]):
+                filtered[:, i] = self.prefilter(timeseries[:, i],
+                                                filtered[:, i-1])
+
+        filtered = filtered.numpy()
+        return filtered.squeeze()
+
     def _prep_input(self, timeseries: np.ndarray) -> torch.Tensor:
         '''Prepares the external NumPy format data for processing.
 
