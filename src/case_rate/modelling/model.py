@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 
 import torch
@@ -47,33 +49,6 @@ class PoissonLikelihood(torch.nn.Module):
         return k * torch.log(lp) - lp - torch.lgamma(k + 1)
 
 
-class SquaredError(torch.nn.Module):
-    '''Implements a standard squared error loss.
-
-    The reason for this versus PyTorch's built-in MSE is to allow for some
-    customization.
-    '''
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, lmbda: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
-        '''Compute the value of the loss function.
-
-        Parameters
-        ----------
-        lmbda : torch.Tensor
-            the estimated value of :math:`\\lambda`
-        k : torch.Tensor
-            the observed value
-
-        Returns
-        -------
-        torch.Tensor
-            :math:`(k - \\lambda)^2`
-        '''
-        return torch.pow(lmbda - k, 2)
-
-
 class Model:
     '''A simple predictive model to estimate counts from a time series.
 
@@ -116,6 +91,11 @@ class Model:
     def train(self, timeseries: np.ndarray) -> float:
         '''Train the model on the provided timeseries.
 
+        The training step will randomly select a "start time", which is some
+        point within the sequence to start the prediction.  The start time will
+        always been in the range :math:`[2W, N-W]`, where :math:`W` is the
+        desired look-ahead period and :math:`N` is the total sequence length.
+
         Parameters
         ----------
         timeseries : np.ndarray
@@ -128,71 +108,87 @@ class Model:
             the estimated loss for this timeseries
         '''
         timeseries = self._prep_input(timeseries)
+
+        self.prefilter.train()
+        self.predictor.train()
         self.optim.zero_grad()
 
         likelihood = PoissonLikelihood()
         loss = 0
 
+        # Prime the network by running through between 2*W and (N-W) samples.
+        N = timeseries.shape[1]
+        start = random.randint(2*self._lookahead, N - self._lookahead)
+
         filtered = timeseries[:, 0]
         hidden = self.predictor.default_state()
-        for i in range(1, timeseries.shape[1]-1):
+        for i in range(1, start):
             filtered = self.prefilter(timeseries[:, i], filtered)
             lmbda, hidden = self.predictor(filtered, hidden)
-            loss += -likelihood(lmbda, timeseries[:, i+1])
+
+        # Compute the loss for the last calculated value of lambda.
+        loss += -likelihood(lmbda, timeseries[:, i])
+
+        # Now compute the loss, trying to predict the next 'W' samples.
+        for i in range(start, start + self._lookahead):
+            predicted = torch.poisson(lmbda)
+            filtered = self.prefilter(predicted, filtered)
+            lmbda, hidden = self.predictor(filtered, hidden)
+            loss += -likelihood(lmbda, timeseries[:, i])
 
         loss.backward()
         self.optim.step()
 
-        return loss.item() / (timeseries.shape[1]-2)
+        return loss.item() / self._lookahead
 
-    def _predict_next(self, timeseries: torch.Tensor) -> torch.Tensor:
-        '''Predict the next sample in the timeseries.
-
-        Parameters
-        ----------
-        timeseries : torch.Tensor
-            input timeseries
-
-        Returns
-        -------
-        torch.Tensor
-            predicted sample
-        '''
-        filtered = timeseries[:, 0]
-        hidden = self.predictor.default_state()
-        for i in range(1, timeseries.shape[1]):
-            filtered = self.prefilter(timeseries[:, i], filtered)
-            lmbda, hidden = self.predictor(filtered, hidden)
-        return lmbda
-
-    def reconstruct(self, timeseries: np.ndarray) -> np.ndarray:
-        '''Reconstructs the sequence using the trained model.
+    def predict(self, timeseries: np.ndarray,
+                sample: bool = False) -> np.ndarray:
+        '''Make a prediction given the input time series.
 
         Parameters
         ----------
         timeseries : np.ndarray
             a :math:`(F, N)` array of :math:`N` samples with :math:`F` features
             each
+        sample : bool, optional
+            if ``True`` then return each sample as
+            :math:`k \\sim \\mathrm{Pois}(\\lambda)`, otherwise return the
+            expected value, :math:`\\lambda`, which is the default behaviour
 
         Returns
         -------
         np.ndarray
-            the model's reconstruction
+            the prediction as a :math:`(F, W)` array, where :math:`W` is the
+            size of the look-ahead (i.e. prediction) window
         '''
         with torch.no_grad():
+            self.prefilter.eval()
+            self.predictor.eval()
+
             timeseries = self._prep_input(timeseries)
-            filtered = timeseries.clone()
-            for i in range(1, timeseries.shape[1]):
-                filtered[:, i] = self.prefilter(timeseries[:, i],
-                                                filtered[:, i-1])
 
-            storage = torch.empty_like(filtered)
+            # Prepare the filter/predictor by running through the existing
+            # data.
+            filtered = timeseries[:, 0]
             hidden = self.predictor.default_state()
-            for i in range(filtered.shape[1]):
-                lmbda, hidden = self.predictor(filtered[0, i], hidden)
-                storage[:, i] = lmbda
+            for i in range(1, timeseries.shape[1]):
+                filtered = self.prefilter(timeseries[:, i], filtered)
+                lmbda, hidden = self.predictor(filtered, hidden)
 
-        output = storage.numpy()
+            # Now predict what the next 'W' samples look like.
+            output = torch.empty(timeseries.shape[0], self._lookahead)
+            for i in range(0, self._lookahead):
+                predicted = torch.poisson(lmbda)
+
+                if sample:
+                    output[:, i] = predicted
+                else:
+                    output[:, i] = lmbda
+
+                filtered = self.prefilter(predicted, filtered)
+                lmbda, hidden = self.predictor(filtered, hidden)
+
+        output = output.numpy()
         return output.squeeze()
 
     def filter(self, timeseries: np.ndarray) -> np.ndarray:
@@ -212,6 +208,8 @@ class Model:
         np.ndarray
             the filtered timeseries
         '''
+        self.prefilter.eval()
+        self.predictor.eval()
         with torch.no_grad():
             timeseries = self._prep_input(timeseries)
             filtered = timeseries.clone()

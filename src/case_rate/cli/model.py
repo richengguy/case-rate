@@ -97,28 +97,35 @@ def _training_report(output: str, model: Model, loss: List[float],
     loss_fig = bokeh.plotting.figure(
         x_axis_label='Epoch',
         y_axis_label='Loss',
-        y_axis_type='log',
         title='Training Loss'
     )
     loss_fig.line(range(len(loss)), loss)
 
     samples_layout = []
     for region, original in samples.items():
-        recovered = model.reconstruct(original)
+        subset = original[:, 0:original.shape[1]-model._lookahead]
+
+        expectation = model.predict(subset, False).squeeze()
+        sampled = model.predict(subset, True).squeeze()
 
         prediction = bokeh.plotting.figure(title=':'.join(region))
         prediction.line(np.arange(original.shape[1]), original.squeeze(),
                         legend_label='Original')
-        prediction.line(np.arange(recovered.shape[0]), recovered.squeeze(),
+
+        xrng = np.arange(expectation.shape[0]) + original.shape[1] - model._lookahead  # noqa: E501
+        prediction.line(xrng, expectation,
                         line_width=2, line_color='orange',
-                        legend_label='Predicted Lambda')
+                        legend_label='Predicted Expectation')
+        prediction.line(xrng, sampled,
+                        line_width=2, line_color='slategrey',
+                        legend_label='Sampled Prediction')
 
         smoothed = bokeh.plotting.figure(title=':'.join(region))
         smoothed.line(np.arange(original.shape[1]), original.squeeze(),
                       legend_label='Original')
         smoothed.line(np.arange(original.shape[1]), model.filter(original),
                       line_width=2, line_color='green',
-                      legend_label=f'Filtered (a={alpha:.2})')
+                      legend_label=f'Filtered (a={alpha:.4})')
 
         samples_layout.append([prediction, smoothed])
 
@@ -192,7 +199,7 @@ def command(config: dict, tensorboard: bool, training_report: bool,
                   training_config['learning_rate'])
 
     progbar = click.progressbar(range(training_config['epochs']),
-                                label=click.style('Training', bold=True))
+                                label=click.style('Training:', bold=True))
     with progbar as epochs:
         for epoch in epochs:
             # Shuffle the training set for the epoch.
