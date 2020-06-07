@@ -191,11 +191,14 @@ def command(config: dict, tensorboard: bool, training_report: bool,
                   model_config['hidden_states'],
                   training_config['learning_rate'])
 
-    click.secho('Training:', bold=True)
-    with click.progressbar(range(training_config['epochs'])) as epochs:
+    progbar = click.progressbar(range(training_config['epochs']),
+                                label=click.style('Training', bold=True))
+    with progbar as epochs:
         for epoch in epochs:
+            # Shuffle the training set for the epoch.
             batch = random.sample(training_data.keys(), len(training_data))
 
+            # Compute the loss for each training sample.
             batch_loss = 0
             for region in batch:
                 region_loss = model.train(training_data[region])
@@ -204,6 +207,7 @@ def command(config: dict, tensorboard: bool, training_report: bool,
                     writer.add_scalar('Loss/Region', region_loss, region_index)
                     region_index += 1
 
+            # Update the losses as well as TensorBoard (if enabled).
             loss.append(batch_loss / len(batch))
             if tensorboard:
                 writer.add_scalar('Loss/Batch', loss[-1], epoch)
@@ -212,12 +216,14 @@ def command(config: dict, tensorboard: bool, training_report: bool,
                         'Param/alpha', model.prefilter.alpha.detach().numpy(),
                         epoch)
 
-    model.save('model.pth')
+    echo_item('Loss', f'{loss[0]:.4} \u279e {loss[-1]:.4}')
+    click.echo(click.style('Saving model to ', bold=True) + model_path)
+    model.save(model_path)
 
     if tensorboard:
         writer.close()
 
-    # Generate a Bokeh "report".
+    # Generate the final training report (if enabled).
     if training_report:
         samples = {
             ('Canada', 'Alberta'): training_data[('Canada', 'Alberta')],
