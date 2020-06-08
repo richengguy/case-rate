@@ -1,6 +1,8 @@
 import random
+from typing import Tuple
 
 import numpy as np
+import scipy.stats
 
 import torch
 import torch.nn
@@ -117,6 +119,8 @@ class Model:
         loss = 0
 
         # Prime the network by running through between 2*W and (N-W) samples.
+        # During this period, the output should closely match the original
+        # because it's effectively a regression.
         N = timeseries.shape[1]
         start = random.randint(2*self._lookahead, N - self._lookahead)
 
@@ -125,11 +129,10 @@ class Model:
         for i in range(1, start):
             filtered = self.prefilter(timeseries[:, i], filtered)
             lmbda, hidden = self.predictor(filtered, hidden)
+            loss += -likelihood(lmbda, timeseries[:, i])
 
-        # Compute the loss for the last calculated value of lambda.
-        loss += -likelihood(lmbda, timeseries[:, i])
-
-        # Now compute the loss, trying to predict the next 'W' samples.
+        # Now compute the loss, trying to predict the next 'W' samples.  This
+        # is now a prediction error.
         for i in range(start, start + self._lookahead):
             predicted = torch.poisson(lmbda)
             filtered = self.prefilter(predicted, filtered)
@@ -141,8 +144,46 @@ class Model:
 
         return loss.item() / self._lookahead
 
-    def predict(self, timeseries: np.ndarray,
-                sample: bool = False) -> np.ndarray:
+    def expectation(self, timeseries: np.ndarray) -> np.ndarray:
+        '''Estimate the expected value for the time series.
+
+        If any time series sample
+        :math:`x[n] \\sim \\mathrm{Pois}(\\lambda[n])` then this method will
+        attempt to find the sequence :math:`\\lambda[n] = E(x[n])`.  In other
+        words, it tries to answer the question, "What is the expected value of
+        :math:`x[n]` given all the samples seen so far?"
+
+        Parameters
+        ----------
+        timeseries : np.ndarray
+            a :math:`(F, N)` array of :math:`N` samples with :math:`F` features
+            each
+
+        Returns
+        -------
+        np.ndarray
+            a :math:`(F, N)` array containing the expectation of the model at
+            any given sample
+        '''
+        with torch.no_grad():
+            self.prefilter.eval()
+            self.predictor.eval()
+
+            timeseries = self._prep_input(timeseries)
+
+            output = torch.empty_like(timeseries)
+
+            filtered = timeseries[:, 0]
+            hidden = self.predictor.default_state()
+            for i in range(1, timeseries.shape[1]):
+                filtered = self.prefilter(timeseries[:, i], filtered)
+                lmda, hidden = self.predictor(filtered, hidden)
+                output[:, i] = lmda
+
+            output[:, 0] = output[:, 1]
+            return output.numpy().squeeze()
+
+    def predict(self, timeseries: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         '''Make a prediction given the input time series.
 
         Parameters
@@ -157,9 +198,11 @@ class Model:
 
         Returns
         -------
-        np.ndarray
+        prediction : np.ndarray
             the prediction as a :math:`(F, W)` array, where :math:`W` is the
             size of the look-ahead (i.e. prediction) window
+        expectation : np.ndarray
+            the prediction of the expectations as a :math:`(F, W)` array
         '''
         with torch.no_grad():
             self.prefilter.eval()
@@ -176,20 +219,16 @@ class Model:
                 lmbda, hidden = self.predictor(filtered, hidden)
 
             # Now predict what the next 'W' samples look like.
-            output = torch.empty(timeseries.shape[0], self._lookahead)
+            prediction = torch.empty(timeseries.shape[0], self._lookahead)
+            expectation = torch.empty(timeseries.shape[0], self._lookahead)
             for i in range(0, self._lookahead):
-                predicted = torch.poisson(lmbda)
+                prediction[:, i] = torch.poisson(lmbda)
+                expectation[:, i] = lmbda
 
-                if sample:
-                    output[:, i] = predicted
-                else:
-                    output[:, i] = lmbda
-
-                filtered = self.prefilter(predicted, filtered)
+                filtered = self.prefilter(prediction[:, i], filtered)
                 lmbda, hidden = self.predictor(filtered, hidden)
 
-        output = output.numpy()
-        return output.squeeze()
+        return prediction.numpy(), expectation.numpy()
 
     def filter(self, timeseries: np.ndarray) -> np.ndarray:
         '''Runs the tuned IIR pre-filter on the time series.
@@ -244,6 +283,39 @@ class Model:
             }
         }
         torch.save(model, path)
+
+    @staticmethod
+    def confidence_interval(lmbda: np.ndarray,
+                            samples: np.ndarray,
+                            alpha: float = 0.95) -> np.ndarray:
+        '''Compute the confidence interval given expectations and samples.
+
+        Parameters
+        ----------
+        lmbda : np.ndarray
+            a :math:`(F, N)` array of Poisson :math:`\\lambda` values
+        samples : np.ndarray
+            a :math:`(F, N)` array of counts from a time series, either source
+            data or predictions
+        alpha : float, optional
+            the desired confidence/prediction interval; defaults to ``0.95`` or
+            95%
+
+        Returns
+        -------
+        upper : np.ndarray
+            a :math:`(F, N)` array containing the upper confidence/prediction
+            intervals
+        lower : np.ndarray
+            a :math:`(F, N)` array containing the lower confidence/prediction
+            intervals
+        '''
+        alpha = 1 - alpha
+
+        lower = lmbda - 0.5*scipy.stats.chi2.ppf(alpha/2, 2*samples)
+        upper = lmbda + 0.5*scipy.stats.chi2.ppf(1 - alpha/2, 2*samples + 2)
+
+        return upper, lower
 
     @staticmethod
     def load(path: PathLike) -> 'Model':

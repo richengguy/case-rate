@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple
 
 import bokeh.io
 import bokeh.layouts
+import bokeh.models
 import bokeh.plotting
 import click
 import numpy as np
@@ -104,30 +105,53 @@ def _training_report(output: str, model: Model, loss: List[float],
     samples_layout = []
     for region, original in samples.items():
         subset = original[:, 0:original.shape[1]-model._lookahead]
+        samples, lmbda = model.predict(subset)
+        upper_ci, lower_ci = model.confidence_interval(lmbda, samples)
 
-        expectation = model.predict(subset, False).squeeze()
-        sampled = model.predict(subset, True).squeeze()
+        source = bokeh.models.ColumnDataSource({
+            'x': np.arange(original.shape[1]),
+            'original': original.squeeze(),
+            'smoothed': model.filter(original).squeeze()
+        })
 
-        prediction = bokeh.plotting.figure(title=':'.join(region))
-        prediction.line(np.arange(original.shape[1]), original.squeeze(),
-                        legend_label='Original')
+        regression = bokeh.models.ColumnDataSource({
+            'x': np.arange(subset.shape[1]),
+            'regression': model.expectation(subset).squeeze()
+        })
 
-        xrng = np.arange(expectation.shape[0]) + original.shape[1] - model._lookahead  # noqa: E501
-        prediction.line(xrng, expectation,
-                        line_width=2, line_color='orange',
-                        legend_label='Predicted Expectation')
-        prediction.line(xrng, sampled,
-                        line_width=2, line_color='slategrey',
-                        legend_label='Sampled Prediction')
+        predicted = bokeh.models.ColumnDataSource({
+            'x': subset.shape[1] + np.arange(model._lookahead),
+            'lambda': lmbda.squeeze(),
+            'prediction': samples.squeeze(),
+            'upper_ci': upper_ci.squeeze(),
+            'lower_ci': lower_ci.squeeze()
+        })
 
-        smoothed = bokeh.plotting.figure(title=':'.join(region))
-        smoothed.line(np.arange(original.shape[1]), original.squeeze(),
-                      legend_label='Original')
-        smoothed.line(np.arange(original.shape[1]), model.filter(original),
-                      line_width=2, line_color='green',
-                      legend_label=f'Filtered (a={alpha:.4})')
+        fig_prediction = bokeh.plotting.figure(title=':'.join(region))
+        fig_prediction.line(x='x', y='original', source=source,
+                            legend_label='Original')
+        fig_prediction.line(x='x', y='regression', source=regression,
+                            line_width=2, line_color='orange',
+                            line_dash='dashed', legend_label='Regression')
+        fig_prediction.line(x='x', y='lambda', source=predicted, line_width=2,
+                            line_color='orange',
+                            legend_label='Predicted Expectation')
+        fig_prediction.line(x='x', y='prediction', source=predicted,
+                            line_width=2, line_color='slategrey',
+                            legend_label='Predicted Samples')
+        fig_prediction.add_layout(bokeh.models.Band(
+            base='x', lower='lower_ci', upper='upper_ci', source=predicted,
+            fill_color='lightblue', fill_alpha=0.4
+        ))
 
-        samples_layout.append([prediction, smoothed])
+        fig_smoothed = bokeh.plotting.figure(title=':'.join(region))
+        fig_smoothed.line(x='x', y='original', source=source,
+                          legend_label='Original')
+        fig_smoothed.line(x='x', y='smoothed', source=source,
+                          line_width=2, line_color='green',
+                          legend_label=f'Filtered (a={alpha:.4})')
+
+        samples_layout.append([fig_prediction, fig_smoothed])
 
     bokeh.io.show(
         bokeh.layouts.grid([
