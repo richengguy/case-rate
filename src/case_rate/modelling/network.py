@@ -128,10 +128,10 @@ class SimpleRecurrentNetwork(torch.nn.Module):
         self.bias_output = torch.nn.Parameter(bias_output)
 
         # Do the initialization.
-        gain = torch.nn.init.calculate_gain('tanh')
-        torch.nn.init.xavier_uniform_(self.weight_input, gain)
-        torch.nn.init.xavier_uniform_(self.weight_hidden, gain)
-        torch.nn.init.xavier_uniform_(self.weight_output)
+        gain = torch.nn.init.calculate_gain('relu')
+        torch.nn.init.kaiming_uniform_(self.weight_input, gain)
+        torch.nn.init.kaiming_uniform_(self.weight_hidden, gain)
+        torch.nn.init.kaiming_uniform_(self.weight_output)
 
         k1 = math.sqrt(1/hidden)
         k2 = math.sqrt(1/features)
@@ -165,7 +165,7 @@ class SimpleRecurrentNetwork(torch.nn.Module):
         '''
         X = self.weight_input * sample
         Y = self.weight_hidden @ hidden
-        hidden = torch.tanh(X + Y + self.bias_input)
+        hidden = F.relu(X + Y + self.bias_input)
         output = F.softplus(self.weight_output @ hidden + self.bias_output)
         return output, hidden
 
