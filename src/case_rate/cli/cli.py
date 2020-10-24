@@ -6,12 +6,6 @@ import toml
 from . import info, report, sources
 from .. import VERSION
 
-try:
-    import torch  # noqa: F401
-    _has_torch = True
-except ImportError:
-    _has_torch = False
-
 
 @click.group()
 @click.option('-c', '--config', 'config_path', default='case-rate.toml',
@@ -43,10 +37,6 @@ def main(ctx: click.Context, config_path):
 main.add_command(info.command)
 main.add_command(report.command)
 main.add_command(sources.command)
-
-if _has_torch:
-    from . import modelling
-    main.add_command(modelling.command)
 
 
 if __name__ == '__main__':
