@@ -20,8 +20,7 @@ jobs:
         pytest -v -rxXs .
     - name: Run a flake8 check
       run: |
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --exit-zero --statistics
+        flake8 . --count --statistics
     - name: Perform a basic integration test
       run: |
         covid19 info
