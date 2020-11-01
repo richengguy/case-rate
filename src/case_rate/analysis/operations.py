@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.signal
 
 from .least_squares import LeastSquares, derivative, evalpoly
 from .timeseries import TimeSeries
@@ -134,6 +135,11 @@ def growth_factor(ts: TimeSeries, window: int, order: int = 1,
                   confidence: float = 0.95) -> np.ndarray:
     '''Estimate the exponential growth factor of the time series.
 
+    The growth factor calculate assumes that the time series is describing a
+    monotonic function such as a cumulative count.  This means the finite
+    differences are always greater than or equal to zero.  Negative values are
+    filtered out prior to the calculation.
+
     Parameters
     ----------
     ts: :class:`TimeSeries`
@@ -153,6 +159,9 @@ def growth_factor(ts: TimeSeries, window: int, order: int = 1,
         confidence interval, e.g. each row is ``(slope, upper_ci,
         lower_ci)``
     '''
+    if order != 1:
+        raise ValueError('Order must be "1".')
+
     N = len(ts)
     changes = ts.daily_change
     output = np.zeros((len(ts), 3))
@@ -162,26 +171,59 @@ def growth_factor(ts: TimeSeries, window: int, order: int = 1,
         raise ValueError('Window size must be at least three days.')
 
     for i in range(N):
+        # Select the filtering window.  The 'daily changes' is returned as an
+        # array, not as a TimeSeries, so this is being done directly in this
+        # loop.
         i_min = max(0, i - window // 2)
         i_max = min(N - 1, i + window // 2) + 1
 
         x = changes[i_min:i_max]
         t = np.arange(i_min, i_max)
 
-        valid = changes[i_min:i_max] >= 1
+        '''
+        x[n] = x[0] a^n
+        log(x[n]) = log(x[0]a^n)
+                  = log(x[0]) + log(a^n)
+                  = log(x[0]) + log(a)*n
+        '''
+
+        # If all values in the window are '0' then the growth rate is, by
+        # definition, also '0' because nothing's happening.
+        if np.all(x == 0):
+            output[i, :] = 0
+            continue
+
+        # Determine if there are any negative values.  Those may come from a
+        # number of sources, such as corrections being applied onto the time
+        # series.  If all values are negative then no growth rate can be
+        # calculated.
+        is_negative = x < 0
+        if np.all(is_negative):
+            continue
+
+        # Similarly, there must enough values to calculate a least squares fit.
+        valid = np.logical_not(is_negative)
         if valid.sum() < order+2:
             continue
 
+        # Remove the invalid values and centre the window so that the centre
+        # corresponds to 'n = 0'.  A small non-zero value is added to make it
+        # possible to take the log of 'x' without any numerical issues.
         x = x[valid]
         t = t[valid]
-        ls = LeastSquares(t, np.log(x), order)
 
+        log_x = np.log(x + 1e-10)
+
+        # Compute the least squares regression, getting the weights and
+        # confidence interval.
+        ls = LeastSquares(t, log_x, order)
         weights = ls.weights
         cv = ls.confidence(confidence)
-        t0 = np.array([i])
 
-        output[i, 0] = evalpoly(derivative(weights), t0)
-        output[i, 1] = evalpoly(derivative(weights + cv), t0)
-        output[i, 2] = evalpoly(derivative(weights - cv), t0)
+        # The regression will find log(x[n]) = b_0 + b_1*n, where b_1 is the
+        # estimate of log(a).
+        output[i, 0] = np.exp(weights[1])
+        output[i, 1] = np.exp(weights[1] + cv[1])
+        output[i, 2] = np.exp(weights[1] - cv[1])
 
-    return np.exp(output)
+    return output
