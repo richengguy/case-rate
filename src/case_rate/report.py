@@ -1,6 +1,6 @@
 from collections import OrderedDict
 import datetime
-from typing import Dict, List, Optional, NamedTuple
+from typing import Any, Dict, List, NamedTuple, Tuple
 
 import bokeh.embed
 import bokeh.plotting
@@ -21,7 +21,7 @@ class SourceInfo(NamedTuple):
 
 class HTMLReport(object):
     '''Generate a report page for the current time series data.'''
-    def __init__(self, sources: Optional[Dict[str, SourceInfo]] = None):
+    def __init__(self, sources: Dict[str, SourceInfo]):
         '''
         Parameters
         ----------
@@ -83,7 +83,7 @@ class HTMLReport(object):
                                bokeh_plots=div)
 
     def generate_overview(self, data: Dict[str, List[Datum]],
-                          min_confirmed: int = 0) -> str:
+                          min_confirmed: int = 0) -> Tuple[str, Dict[str, str]]:  # noqa: E501
         '''Generates an HTML overview report for the provided time series.
 
         Parameters
@@ -114,7 +114,7 @@ class HTMLReport(object):
             percent_change = analysis.percent_change(ts, 11)[-1, :]
             percent_change *= 100
 
-            info = {}
+            info: Dict[str, Any] = {}
             info['link'] = f'details-{region}.html'
             info['total_confirmed'] = int(ts[-1])
             info['new_cases'] = int(ts.daily_change[-1])
@@ -140,7 +140,7 @@ class HTMLReport(object):
         resources = bokeh.resources.CDN.render()
         script, div = bokeh.embed.components(plots)
 
-        unique_sources = set(info for info in self._sources.values())
+        unique_sources = list(set(info for info in self._sources.values()))
         unique_sources = sorted(unique_sources, key=lambda x: x.description)
 
         template = self._env.get_template('overview.html')

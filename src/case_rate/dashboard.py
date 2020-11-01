@@ -1,6 +1,6 @@
 import enum
 import pathlib
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from . import filters
 from ._types import PathLike, Datum
@@ -24,7 +24,7 @@ class Dashboard(object):
     '''
     def __init__(self, mode: OutputType = OutputType.DEFAULT,
                  output: PathLike = 'dashboard.html',
-                 sources: Optional[Dict[str, SourceInfo]] = None,
+                 sources: Dict[str, SourceInfo] = dict(),
                  confidence: float = 0.95,
                  filter_window: int = 11,
                  min_confirmed: int = 1):
@@ -36,7 +36,7 @@ class Dashboard(object):
         output : Path-like
             name of the dashboard HTML file, by default 'dashboard.html'
         sources : dict of :class:`SourceInfo` objects
-            contains optional data source information, by default `None`
+            contains optional data source information, empty by default
         confidence : float, optional
             the confidence interval percentage, by default 0.95
         filter_window : int, optional
