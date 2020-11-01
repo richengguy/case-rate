@@ -40,7 +40,7 @@ def command(config: dict, countries: Tuple[str], output: str,
     click.secho('Regions: ', bold=True, nl=False)
 
     if len(countries) == 0:
-        countries = [None]
+        countries = [None]  # type: ignore
         click.echo('World')
     else:
         click.echo(click.style('Regions: ', bold=True) + ','.join(countries))
@@ -72,12 +72,12 @@ def command(config: dict, countries: Tuple[str], output: str,
 
     # Ensure `None` maps to `World` in the dashboard.
     if None in data:
-        data['World'] = data[None]
-        del data[None]
+        data['World'] = data[None]  # type: ignore
+        del data[None]  # type: ignore
 
     if None in source_info:
-        source_info['World'] = source_info[None]
-        del source_info[None]
+        source_info['World'] = source_info[None]  # type: ignore
+        del source_info[None]  # type: ignore
 
     # Generate the report and/or dashboard.
     click.secho('Dashboard: ', bold=True, nl=False)
