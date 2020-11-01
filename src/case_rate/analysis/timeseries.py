@@ -36,8 +36,8 @@ class TimeSeries:
         def filter_by_field(datum: Datum) -> bool:
             return datum._asdict()[field] >= min_value
 
-        data = filters.select(data, filter_by_field)
-        data = filters.sum_by_date(data)
+        data = filters.select(data, filter_by_field)  # type: ignore
+        data = filters.sum_by_date(data)  # type: ignore
 
         start_date = data[0].date
         end_date = data[-1].date
