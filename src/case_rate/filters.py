@@ -1,12 +1,10 @@
 import datetime
-from case_rate.storage import Cases, CaseTesting
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List
 
-_Info = Union[Cases, CaseTesting]
-_InfoList = Union[List[Cases], List[CaseTesting]]
+from ._types import Datum
 
 
-def select(cases: _InfoList, fn: Callable[[_Info], bool]) -> _InfoList:
+def select(cases: List[Datum], fn: Callable[[Datum], bool]) -> List[Datum]:
     '''Filters the list of cases based on some criteria.
 
     Parameters
@@ -25,7 +23,7 @@ def select(cases: _InfoList, fn: Callable[[_Info], bool]) -> _InfoList:
     return sorted(filtered, key=lambda item: item.date)
 
 
-def select_by_country(cases: _InfoList, country: str) -> _InfoList:
+def select_by_country(cases: List[Datum], country: str) -> List[Datum]:
     '''Filter the list of cases by country.
 
     Parameters
@@ -43,7 +41,7 @@ def select_by_country(cases: _InfoList, country: str) -> _InfoList:
     return select(cases, lambda case: case.country == country)
 
 
-def sum_by_date(cases: _InfoList) -> _InfoList:
+def sum_by_date(cases: List[Datum]) -> List[Datum]:
     '''Sum cases or testing status by date.
 
     Parameters
@@ -57,10 +55,10 @@ def sum_by_date(cases: _InfoList) -> _InfoList:
         list of cases, but where each element is summed by date; if there are
         multiple countries/provinces then that information is lost
     '''
-    summed: Dict[datetime.date, _Info] = {}
+    summed: Dict[datetime.date, Datum] = {}
     for case in cases:
         if case.date in summed:
-            summed[case.date] += case
+            summed[case.date] += case  # type: ignore
         else:
             summed[case.date] = case
 
