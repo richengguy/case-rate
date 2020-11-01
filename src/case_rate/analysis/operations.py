@@ -234,4 +234,25 @@ def growth_factor(ts: TimeSeries, window: int, order: int = 1,
     for i in range(slopes.shape[1]):
         output[:, i] = _sequence_growth_factor(slopes[:, i], window)
 
+    # Set the upper/lower CI curves to zero if the best fit curve is zero.  The
+    # results are meaningless in this case because there wasn't enough data to
+    # do the calculation.
+    best_fit = output[:, 0]
+    confidence_intervals = output[:, 1:]
+    confidence_intervals[best_fit == 0, :] = 0
+
+    # The intervals curves will have different growth factor curves, so they
+    # need to be sorted to be consistent with the idea of an upper/lower bound.
+    is_swapped = np.argmin(confidence_intervals, 1) != 0
+
+    if np.any(is_swapped):
+        for i, swapped in enumerate(is_swapped):
+            if not swapped:
+                continue
+
+            value = confidence_intervals[i, 0]
+            confidence_intervals[i, 0] = confidence_intervals[i, 1]
+            confidence_intervals[i, 1] = value
+
+    output[:, 1:] = confidence_intervals
     return output
