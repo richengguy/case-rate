@@ -39,7 +39,7 @@ class Cases(NamedTuple):
     deceased: int
     resolved: int
 
-    def __add__(self, other: 'Cases') -> 'Cases':
+    def __add__(self, other: 'Cases') -> 'Cases':  # type: ignore
         if not isinstance(other, self.__class__):
             raise TypeError('Must only add to another Cases object.')
 
@@ -91,7 +91,7 @@ class CaseTesting(NamedTuple):
     tested: int
     under_investigation: int
 
-    def __add__(self, other: 'CaseTesting') -> 'CaseTesting':
+    def __add__(self, other: 'CaseTesting') -> 'CaseTesting':  # type: ignore
         if not isinstance(other, self.__class__):
             raise TypeError('Must only add to another CaseTesting object.')
 
