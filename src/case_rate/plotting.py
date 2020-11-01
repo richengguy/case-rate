@@ -256,7 +256,7 @@ class Plotter:
         -------
         bokeh ``Figure``
         '''
-        p = _make_plot(title=title, ylabel='Growth Factor', yrange=(0, 2.5))
+        p = _make_plot(title=title, ylabel='Growth Factor', yrange=(0.5, 1.5))
 
         for colour, dates, series in self._data:
             growth = analysis.growth_factor(series, **self._filter_args)

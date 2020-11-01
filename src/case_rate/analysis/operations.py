@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.signal
 
 from .least_squares import LeastSquares, derivative, evalpoly
 from .timeseries import TimeSeries
