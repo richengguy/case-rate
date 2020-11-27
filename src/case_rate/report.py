@@ -125,8 +125,8 @@ class HTMLReport(object):
             }
             info['growth_factor'] = {
                 'estimate': gf[0],
-                'upper': gf[1],
-                'lower': gf[2]
+                'upper': max(gf[1:]),
+                'lower': min(gf[1:])
             }
 
             stats[region] = info
