@@ -221,8 +221,9 @@ def growth_factor(ts: TimeSeries, window: int, order: int = 1,
     Returns
     -------
     numpy.ndarray
-        a :math:`N \\times 3`` array containing the growth factor and 95%
-        confidence interval, e.g. each row is ``(slope, upper_ci, lower_ci)``
+        a :math:`N \\times 3`` array containing the growth factor curves of the
+        daily change and confidence interval curves, i.e. each row is
+        ``(growth_slope, growth_upper_ci, growth_lower_ci)``
     '''
     if window < 3:
         raise ValueError('Window size must be at least three days.')
