@@ -48,7 +48,15 @@ def _to_date(date: str) -> datetime.date:
     datetime.date
         output ``date`` object
     '''
-    dt = datetime.datetime.strptime(date, '%Y-%m-%d')
+
+    fmt = '%Y-%m-%d'
+    alt_fmt = '%m/%d/%Y'
+
+    try:
+        dt = datetime.datetime.strptime(date, fmt)
+    except ValueError:
+        dt = datetime.datetime.strptime(date, alt_fmt)
+
     return dt.date()
 
 
