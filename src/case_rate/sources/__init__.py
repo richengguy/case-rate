@@ -65,7 +65,7 @@ def select_source(region: Optional[str] = None,
     if len(parts) == 1:
         key = (parts[0], None)
     elif len(parts) == 2:
-        key = (parts[0], parts[1])
+        key = (parts[0], parts[1])  # type: ignore
     else:
         raise NotImplementedError(
             'Subprovince (e.g. county-level) selection not implemented.')
@@ -128,4 +128,4 @@ def init_source(path, update, region: Optional[str] = None, params: dict = {},
     except KeyError:
         options = {}
 
-    return SourceCls(path=working_path, update=update, **options)
+    return SourceCls(path=working_path, update=update, **options)  # type: ignore
