@@ -16,7 +16,7 @@ from ..storage import Storage
 
 def _datatype_converter(obj):
     if isinstance(obj, datetime.date) or isinstance(obj, datetime.datetime):
-        return str(obj)
+        return obj.isoformat()
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
 
@@ -30,8 +30,12 @@ def _output_configuration(output_folder: PathLike, countries: List[str],
     output_folder = pathlib.Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
+    generation_time = datetime.datetime.now() \
+        .astimezone() \
+        .replace(microsecond=0)
+
     configuration = {
-        'generated': datetime.datetime.now(),
+        'generated': generation_time,
         'countries': list(map(_process_country_name, countries)),
         'config': {
             'filterWindow': filter_window,
