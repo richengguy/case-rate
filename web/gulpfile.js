@@ -1,11 +1,6 @@
 const gulp = require('gulp');
 const buildOutput = 'dist/'
 
-exports.clean = () => {
-    const del = require('del');
-    return del(buildOutput)
-}
-
 function _renderHtml(template) {
     var fn = (cb) => {
         const exec = require('child_process').exec;
@@ -19,6 +14,11 @@ function _renderHtml(template) {
     };
     fn.displayName = template;
     return fn;
+}
+
+exports.clean = () => {
+    const del = require('del');
+    return del(buildOutput)
 }
 
 exports.css = () => {
