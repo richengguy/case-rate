@@ -1,6 +1,8 @@
 const gulp = require('gulp');
 const buildOutput = 'dist/'
 
+// NOTE: Replace with NPM commands and use rollup.js for packing.
+
 function _renderHtml(template) {
     var fn = (cb) => {
         const exec = require('child_process').exec;
