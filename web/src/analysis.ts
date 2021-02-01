@@ -1,3 +1,17 @@
+import { TimeSeries } from './timeseries';
+
+/**
+ * Name of the JSON file containing the analysis report summary.
+ */
+export const kAnalysisFile: string = 'analysis.json';
+
+/**
+ * The character used to separate national and subnational region names in a
+ * region identifier string.  E.g., strings of the format
+ * "`country`:`province`".
+ */
+export const kRegionSeparator: string = ':';
+
 /**
  * A report's data source.
  */
@@ -29,26 +43,29 @@ export class Source {
 /**
  * High-level metadata about a generated case report.
  */
-export class ReportDetails {
+export class ReportEntry {
+    private _base: string;
     private _country: string;
     private _region: string;
     private _source: Source;
 
     /**
      * Create a new report details instance.
-     * @param regionIdent region identifier string of the form "`<country>`_`<region>`"
+     * @param base base folder where report data may be found
+     * @param jsonObject JSON object containing the report details
      */
-    public constructor(source: Source, regionIdent: string)
+    public constructor(base: string, jsonObject: any)
     {
-        this._source = source;
+        this._source = new Source(jsonObject['description'], jsonObject['url'])
 
-        var underscore = regionIdent.indexOf('_');
+        var regionIdentifier = jsonObject['name'];
+        var underscore = regionIdentifier.indexOf('_');
         if (underscore < 0) {
-            this._country = regionIdent;
+            this._country = regionIdentifier;
             this._region = null;
         } else {
-            this._country = regionIdent.substring(0, underscore);
-            this._region = regionIdent.substring(underscore+1);
+            this._country = regionIdentifier.substring(0, underscore);
+            this._region = regionIdentifier.substring(underscore+1);
         }
     }
 
@@ -67,6 +84,22 @@ export class ReportDetails {
      * Information about where the source data was obtained.
      */
     public get source(): Source { return this._source; }
+
+    /**
+     * Fetch the time series associated with this report entry.
+     * @returns a promise with the entry's time series
+     */
+    public async FetchTimeSeriesAsync(): Promise<TimeSeries> {
+        let regionFile: string
+        if (this._region == null) {
+            regionFile = `${this._country}.json`;
+        } else {
+            regionFile = `${this._country}_${this._region}.json`;
+        }
+
+        let fetchUrl = `${kAnalysisFile}/${this._base}/${regionFile}`;
+        return await TimeSeries.FetchAsync(fetchUrl);
+    }
 }
 
 /**
@@ -74,9 +107,9 @@ export class ReportDetails {
  */
 export class CaseReport {
     private _generated: Date;
-    private _regions: string[];
+    private _regions: ReportEntry[];
 
-    public constructor(generated: Date, regions: string[]) {
+    protected constructor(generated: Date, regions: ReportEntry[]) {
         this._generated = generated;
         this._regions = regions;
     }
@@ -85,8 +118,8 @@ export class CaseReport {
      * Information about an entry within the case report.
      * @param i report entry index
      */
-    public entryDetails(i: number): ReportDetails {
-        return new ReportDetails(null, this._regions[i]);
+    public entryDetails(i: number): ReportEntry {
+        return this._regions[i];
     }
 
     /**
@@ -101,15 +134,15 @@ export class CaseReport {
 
     /**
      * Load details abotu a case report from the given URL.
-     * @param url JSON location
+     * @param url folder with analysis data
      * @returns a new case report instance
      */
     public static async LoadAsync(url: string): Promise<CaseReport> {
-        const response = await fetch(url);
+        const response = await fetch(`${url}/${kAnalysisFile}`);
         const jsonData = await response.json();
         return new CaseReport(
             new Date(jsonData['generated']),
-            jsonData['countries']
+            (<object[]>jsonData['regions']).map(item => new ReportEntry(url, item))
         );
     }
 }

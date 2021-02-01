@@ -1,7 +1,7 @@
 import datetime
 import json
 import pathlib
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import click
 import numpy as np
@@ -25,7 +25,8 @@ def _process_country_name(country: str) -> str:
     return country.replace(':', '_')
 
 
-def _output_configuration(output_folder: PathLike, countries: List[str],
+def _output_configuration(output_folder: PathLike,
+                          source_info: Dict[str, SourceInfo],
                           min_confirmed: int, filter_window: int):
     output_folder = pathlib.Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -36,7 +37,14 @@ def _output_configuration(output_folder: PathLike, countries: List[str],
 
     configuration = {
         'generated': generation_time,
-        'countries': list(map(_process_country_name, countries)),
+        'regions': [
+            {
+                'name': name,
+                'url': info.url,
+                'description': info.description
+            }
+            for name, info in source_info.items()
+        ],
         'config': {
             'filterWindow': filter_window,
             'minConfirmed': min_confirmed,
@@ -65,19 +73,24 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
     output = {
         'country': country,
         'date': series.dates,
-        'cases': {
-            'raw': series._samples,
-            'interpolated': analysis.smooth(series, filter_window, False)
-        },
-        'dailyChange': {
-            'raw': series.daily_change,
-            'interpolated': np.squeeze(derivative[:, 0]),
-            'confidenceInterval': np.squeeze(derivative[:, 1:])
-        },
-        'growthFactor': {
-            'interpolated': np.squeeze(growth_factor[:, 0]),
-            'confidenceInterval': np.squeeze(growth_factor[:, 1:])
-        }
+        'timeseries': [
+            {
+                'name': 'cases',
+                'raw': series._samples,
+                'interpolated': analysis.smooth(series, filter_window, False)
+            },
+            {
+                'name': 'dailyChange',
+                'raw': series.daily_change,
+                'interpolated': np.squeeze(derivative[:, 0]),
+                'confidenceInterval': np.squeeze(derivative[:, 1:])
+            },
+            {
+                'name': 'growthFactor',
+                'interpolated': np.squeeze(growth_factor[:, 0]),
+                'confidenceInterval': np.squeeze(growth_factor[:, 1:])
+            }
+        ]
     }
 
     with analysis_file.open('wt') as f:
@@ -148,23 +161,10 @@ def command(config: dict, countries: Tuple[str], output: str,
         del source_info[None]  # type: ignore
 
     # Write out the analysis configuration.
-    _output_configuration(output, list(data.keys()), min_confirmed, filter_window)
+    _output_configuration(output, source_info, min_confirmed, filter_window)
 
     # Process all of the requested countries/regions.
     for country, timeseries in data.items():
         _output_analysis(output, country, timeseries, min_confirmed, filter_window)
-
-    # # Generate the report and/or dashboard.
-    # click.secho('Dashboard: ', bold=True, nl=False)
-    # dashboard = Dashboard(output=outpath,
-    #                       sources=source_info,
-    #                       min_confirmed=min_confirmed,
-    #                       filter_window=filter_window)
-    # if generate_dashboard:
-    #     click.echo('Yes')
-    #     dashboard.output_mode = OutputType.DASHBOARD
-    # else:
-    #     click.echo('No')
-    # dashboard.generate(data)
 
     click.echo('Generated analysis...' + click.style('\u2713', fg='green'))
