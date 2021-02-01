@@ -16,6 +16,22 @@ function _renderHtml(template) {
     return fn;
 }
 
+function compileTypescript() {
+    const browserify = require('browserify');
+    const source = require('vinyl-source-stream');
+    const tsify = require('tsify');
+
+    return browserify({
+        'basedir': 'src',
+        'debug': true
+    })
+        .add('report.ts')
+        .plugin(tsify)
+        .bundle()
+        .pipe(source('report.js'))
+        .pipe(gulp.dest(buildOutput));
+}
+
 exports.clean = () => {
     const del = require('del');
     return del(buildOutput)
@@ -28,4 +44,7 @@ exports.css = () => {
         .pipe(gulp.dest(buildOutput + 'css'));
 }
 
-exports.html = gulp.series(_renderHtml('report'));
+exports.html = gulp.series(
+    compileTypescript,
+    _renderHtml('report')
+);

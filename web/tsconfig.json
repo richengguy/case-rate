@@ -1,0 +1,10 @@
+{
+    "include": ["src/**/*"],
+    "exclude": ["node_modules"],
+    "compilerOptions": {
+        "noImplicitAny": true,
+        "removeComments": true,
+        "target": "ES6",
+        "moduleResolution": "node"
+    }
+}
