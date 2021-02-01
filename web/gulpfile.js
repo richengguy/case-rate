@@ -18,7 +18,10 @@ function _renderHtml(template) {
 
 function compileTypescript() {
     const browserify = require('browserify');
+    const buffer = require('vinyl-buffer');
     const source = require('vinyl-source-stream');
+    const sourcemaps = require('gulp-sourcemaps');
+    const terser = require('gulp-terser');
     const tsify = require('tsify');
 
     return browserify({
@@ -29,6 +32,13 @@ function compileTypescript() {
         .plugin(tsify)
         .bundle()
         .pipe(source('report.js'))
+        .pipe(buffer())
+        .pipe(sourcemaps.init({ loadMaps: true}))
+        .pipe(terser({
+            keep_fnames: true,
+            keep_classnames: true
+        }))
+        .pipe(sourcemaps.write('./'))
         .pipe(gulp.dest(buildOutput));
 }
 
