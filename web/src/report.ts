@@ -1,4 +1,5 @@
-import { CaseReport } from './analysis';
+import { kAnalysisFile, CaseReport } from './analysis';
+import { TimeSeries } from './timeseries';
 // import { TimeSeries } from './timeseries';
 // import { Chart } from 'chart.js';
 
@@ -50,5 +51,10 @@ window.onload = () => {
                 let entry = report.entryDetails(i);
                 console.log(`Region ${entry.country}:${entry.region} -> ${entry.source.name}`);
             }
+
+            return report.entryDetails(0).FetchTimeSeriesAsync();
+        })
+        .then(timeseries => {
+            console.log(`Time Series Entries: ${timeseries.length}`);
         });
 };

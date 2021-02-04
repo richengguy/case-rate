@@ -56,10 +56,11 @@ export class ReportEntry {
      */
     public constructor(base: string, jsonObject: any)
     {
+        this._base = base;
         this._source = new Source(jsonObject['description'], jsonObject['url'])
 
         var regionIdentifier = jsonObject['name'];
-        var underscore = regionIdentifier.indexOf('_');
+        var underscore = regionIdentifier.indexOf(kRegionSeparator);
         if (underscore < 0) {
             this._country = regionIdentifier;
             this._region = null;
@@ -97,8 +98,8 @@ export class ReportEntry {
             regionFile = `${this._country}_${this._region}.json`;
         }
 
-        let fetchUrl = `${kAnalysisFile}/${this._base}/${regionFile}`;
-        return await TimeSeries.FetchAsync(fetchUrl);
+        let fetchUrl = `${this._base}/${regionFile}`;
+        return await TimeSeries.FetchUrlAsync(fetchUrl);
     }
 }
 

@@ -1,52 +1,69 @@
-class Sample {
-    private _raw: number;
-    private _interpolated: number;
-    private _confUpper: number;
-    private _confLower: number;
-
-    /**
-     * Create a new time series sample.
-     * @param raw raw sample
-     * @param interpolated interpolated value
-     * @param upperConf upper confidence interval (optional)
-     * @param lowerConf lower confidence value (optional)
-     */
-    public constructor(raw: number, interpolated: number, upperConf?: number, lowerConf?: number) { }
-
-    /**
-     * The sample's raw, unprocessed value.
-     */
-    public get value(): number { return this._raw; }
-
-    /**
-     * The sample's interpolated or filtered value.
-     */
-    public get interpolatedValue(): number { return this._interpolated; }
-
-    /**
-     * Indicates if the sample has an associated confidence interval.  Not all
-     * time series will have this.
-     */
-    public get hasConfidenceInterval(): boolean { return this._confUpper != null && this._confLower != null; }
-
-    /**
-     * The sample's confidence interval.  The value will be `undefined` if
-     * hasConfidenceInterval is `false`.
-     */
-    public get confidenceInterval(): [number, number] {
-        return this.hasConfidenceInterval ? [this._confUpper, this._confLower] : undefined;
-    }
+interface JsonTimeSeries {
+    readonly country: string,
+    readonly date: Date[],
+    readonly timeseries: JsonSeriesData[]
 }
 
-interface SamplesDictionary {
-    [key: string]: Sample[];
-}
-
-interface JsonSeries {
+interface JsonSeriesData {
     readonly name: string
     readonly raw?: number[]
     readonly interpolated: number[]
-    readonly confidenceInterval: number[]
+    readonly confidenceInterval?: [number, number][]
+}
+
+class ConfidenceInterval {
+    private _values: [number, number];
+
+    public constructor(values: [number, number]) {
+        this._values = values;
+    }
+
+    /**
+     * The upper range of the confidence interval.
+     */
+    public get upperInterval(): number { return this._values[0]; }
+
+    /**
+     * The lower range of the confidence interval.
+     */
+    public get lowerInterval(): number { return this._values[1]; }
+}
+
+class SeriesData {
+    private _raw: number[];
+    private _interpolated: number[];
+    private _confidence: ConfidenceInterval[]
+
+    /**
+     * Create a new SeriesData instance.
+     * @param interpolated the set of interpolated values
+     * @param raw the unfiltered series data (optional)
+     * @param confidence the confidence interval on any interpolated data (optional)
+     */
+    constructor(data: JsonSeriesData) {
+        this._interpolated = data.interpolated;
+        this._raw = data.raw ?? [];
+        this._confidence = [];
+        if (data.confidenceInterval != null) {
+            this._confidence = data.confidenceInterval.map((interval) => {
+                return new ConfidenceInterval(interval);
+            });
+        }
+    }
+
+    public get interpolated(): number[] { return this._interpolated; }
+
+    public get raw(): number[] { return this._raw; }
+
+    public get confidenceIntervals(): ConfidenceInterval[] { return this._confidence; }
+
+    public get hasRaw(): boolean { return this._raw.length != 0; }
+
+    public get hasConfidenceIntervals(): boolean { return this._confidence.length != 0; }
+}
+
+interface SeriesDictionary {
+    [key: string]: SeriesData;
 }
 
 /**
@@ -54,25 +71,27 @@ interface JsonSeries {
  */
 export class TimeSeries {
     private _dates: Date[];
-    private _samples: SamplesDictionary;
+    private _length: number;
+    private _samples: SeriesDictionary;
 
     /**
      * Create a new TimeSeries instance.
      * @param dates set of time series dates
-     * @param values set of time series values
+     * @param jsonData set of time series values
      */
-    public constructor (dates: Date[], values: JsonSeries[]) {
-        if (dates.length != values.length) {
-            throw new Error('Dates and values don\'t have the same length.');
-        }
-        this._dates = dates;
+    public constructor (jsonTimeSeries: JsonTimeSeries) {
+        this._dates = jsonTimeSeries.date;
+        this._length = jsonTimeSeries.date.length;
         this._samples = {};
+        for (const item of jsonTimeSeries.timeseries) {
+            this._samples[item.name] = new SeriesData(item);
+        }
     }
 
     /**
      * Number of items in the time series.
      */
-    public get length(): number { return this._dates.length; }
+    public get length(): number { return this._length; }
 
     /**
      * The dates in the time series.
@@ -84,9 +103,16 @@ export class TimeSeries {
      * Each series is the same length, but may represent different types of
      * information.
      */
-    public get series(): SamplesDictionary { return this._samples; }
+    public get series(): SeriesDictionary { return this._samples; }
 
-    public static async FetchAsync(url: string): Promise<TimeSeries> {
-        return null;
+    /**
+     * Fetch a time series from a JSON file.
+     * @param url location of timeseries json file
+     * @returns a promise for a new TimeSeries instance
+     */
+    public static async FetchUrlAsync(url: string): Promise<TimeSeries> {
+        var request = await fetch(url);
+        var jsonData = await request.json() as JsonTimeSeries;
+        return new TimeSeries(jsonData);
     }
 }
