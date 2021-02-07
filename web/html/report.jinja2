@@ -1,8 +1,32 @@
 {% extends "base.jinja2" %}
 {% block contents %}
 
+<h1>COVID-19 Cases</h1>
+<table>
+    <tr>
+        <td>Date Generated</td>
+        <td id="info-date-generated"></td>
+    </tr>
+    <tr>
+        <td>Region</td>
+        <td id="info-region"></td>
+    </tr>
+    <tr>
+        <td>Source</td>
+        <td id="info-source"></td>
+    </tr>
+</table>
+
 <div class="chart-container">
-    <canvas id="myChart"></canvas>
+    <canvas id="daily-change"></canvas>
+</div>
+
+<div class="chart-container">
+    <canvas id="growth-factor"></canvas>
+</div>
+
+<div class="chart-container">
+    <canvas id="cumulative-cases"></canvas>
 </div>
 
 <script src="report.js"></script>

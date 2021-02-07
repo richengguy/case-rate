@@ -5,15 +5,13 @@ import { CaseReport } from './analysis';
 import { TimeSeries, SeriesData, ConfidenceInterval } from './timeseries';
 import * as Utilities from './utilities';
 
-function pruneArray(data: number[] | ConfidenceInterval[], previousDays?: number): number[] | ConfidenceInterval[] {
-    return previousDays == null ? data : data.slice(-previousDays);
-}
+
 
 function rawDataPlot(seriesData: SeriesData, previousDays?: number): Chart.ChartDataSets {
-    let data = pruneArray(seriesData.raw, previousDays) as number[];
+    let data = Utilities.pruneArray(seriesData.raw, previousDays) as number[];
     return {
         type: 'bar',
-        label: 'Daily New Cases',
+        label: 'Reported',
         data: data,
         backgroundColor: Colours.kRawDataColour,
         barPercentage: 1.0,
@@ -22,21 +20,22 @@ function rawDataPlot(seriesData: SeriesData, previousDays?: number): Chart.Chart
 }
 
 function interpDataPlot(seriesData: SeriesData, previousDays?: number): Chart.ChartDataSets {
-    let data = pruneArray(seriesData.interpolated, previousDays) as number[];
+    let data = Utilities.pruneArray(seriesData.interpolated, previousDays) as number[];
     return {
         type: 'line',
-        label: 'Daily New Cases (LOESS)',
+        label: 'LOESS Filtered',
         data: data,
         backgroundColor: Colours.kInterpolatedDataColour,
         borderColor: Colours.kInterpolatedDataColour,
         fill: false,
         pointRadius: 0,
-        cubicInterpolationMode: 'monotone'
+        borderWidth: 1.5,
+        cubicInterpolationMode: undefined
     }
 }
 
 function confIntervalPlot(seriesData: SeriesData, previousDays?: number): Chart.ChartDataSets[] {
-    let data = pruneArray(seriesData.confidenceIntervals, previousDays) as ConfidenceInterval[];
+    let data = Utilities.pruneArray(seriesData.confidenceIntervals, previousDays) as ConfidenceInterval[];
     let upperCi = data.map(ci => ci.upperInterval);
     let lowerCi = data.map(ci => ci.lowerInterval);
 
@@ -44,79 +43,149 @@ function confIntervalPlot(seriesData: SeriesData, previousDays?: number): Chart.
         type: 'line',
         label: 'LOESS Confidence',
         data: upperCi,
-        fill: '+1',
+        fill: false,
         pointRadius: 0,
+        borderWidth: 1,
+        borderDash: [5, 5],
         borderColor: Colours.kConfidenceIntervalColour,
-        backgroundColor: Colours.kConfidenceIntervalColour,
     }, {
         type: 'line',
         label: 'LOESS Confidence - Lower',
         data: lowerCi,
         fill: false,
         pointRadius: 0,
+        borderWidth: 1,
+        borderDash: [5, 5],
         borderColor: Colours.kConfidenceIntervalColour,
-        backgroundColor: Colours.kConfidenceIntervalColour,
     }]
 }
 
-function plotTimeSeries(timeSeries: TimeSeries, context: HTMLCanvasElement) {
+function plotDailyChange(timeSeries: TimeSeries, context: HTMLCanvasElement) {
     let previousDays = Utilities.getIntParameter('pastDays');
-    let dates = previousDays == null ? timeSeries.dates : timeSeries.dates.slice(-previousDays);
-
     let dailyChange = timeSeries.series['dailyChange'];
     let ciDataset = confIntervalPlot(dailyChange, previousDays);
 
-    let datasets: Chart.ChartDataSets[] = [];
-    datasets.push(interpDataPlot(dailyChange, previousDays));
-    datasets.push(ciDataset[0], ciDataset[1]);
-    datasets.push(rawDataPlot(dailyChange, previousDays));
+    let datasets: Chart.ChartDataSets[] = [
+        interpDataPlot(dailyChange, previousDays),
+        ciDataset[0],
+        ciDataset[1],
+        rawDataPlot(dailyChange, previousDays)
+    ];
 
     let legendConfig: Chart.ChartLegendOptions = {
         labels: {
             filter: (item, _) => {
                 return item.text !== 'LOESS Confidence - Lower';
             }
+        }
+    };
+
+    new Chart(context, {
+        type: 'line',
+        data: {
+            labels: Utilities.getDates(timeSeries),
+            datasets: datasets
         },
-        onClick: function (event, item) {
-            // NOTE: This is a slight modification of the Chart.js example on
-            // how link legend items.  See
-            // https://www.chartjs.org/docs/latest/configuration/legend.html#legend-label-configuration
-            let index = item.datasetIndex;
-            if (index === 0 || index === 3) {
-                Chart.defaults.global.legend.onClick(event, item);
-            } else {
-                let ci = this.chart;
-                [
-                    ci.getDatasetMeta(1),
-                    ci.getDatasetMeta(2)
-                ].forEach((meta) => {
-                    meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                });
-                ci.update();
+        options: {
+            legend: legendConfig,
+            scales: {
+                yAxes: [{
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Cases'
+                    }
+                }]
             }
         }
+    });
+}
+
+function plotGrowthFactor(timeSeries: TimeSeries, context: HTMLCanvasElement) {
+    let previousDays = Utilities.getIntParameter('pastDays');
+    let growthFactor = timeSeries.series['growthFactor'];
+
+    let dataset = interpDataPlot(growthFactor, previousDays);
+    for (let i = 0; i < dataset.data.length; i++) {
+        let gf = dataset.data[i] as number;
+        dataset.data[i] = (gf - 1) * 100;
     }
 
     new Chart(context, {
         type: 'line',
         data: {
-            labels: dates,
-            datasets: datasets
+            labels: Utilities.getDates(timeSeries),
+            datasets: [dataset]
         },
         options: {
-            legend: legendConfig
+            legend: {
+                display: false
+            },
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        suggestedMin: -25,
+                        suggestedMax: 25,
+                        callback: (value) => {
+                            return value + '%';
+                        }
+                    },
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Relative Growth'
+                    },
+                }]
+            }
+        }
+    });
+}
+
+function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement) {
+    let previousDays = Utilities.getIntParameter('pastDays');
+    let totalCases = timeSeries.series['cases'];
+
+    let rawCounts = rawDataPlot(totalCases, previousDays);
+    let interpolated = interpDataPlot(totalCases, previousDays);
+
+    new Chart(context, {
+        type: 'line',
+        data: {
+            labels: Utilities.getDates(timeSeries),
+            datasets: [
+                interpolated,
+                rawCounts
+            ]
+        },
+        options: {
+            scales: {
+                yAxes: [{
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Cumulative Cases'
+                    },
+                }]
+            }
         }
     });
 }
 
 window.onload = () => {
-    let canvas = document.getElementById('myChart') as HTMLCanvasElement;
+    let dailyChange = document.getElementById('daily-change') as HTMLCanvasElement;
+    let growthFactor = document.getElementById('growth-factor') as HTMLCanvasElement;
+    let cumulativeCases = document.getElementById('cumulative-cases') as HTMLCanvasElement;
+
     let selected = Utilities.getIntParameter('selected');
     if (selected == null) {
         throw new Error('No particular case report data was selected.');
     }
 
+    // Disable legend selection.
+    Chart.defaults.global.legend.onClick = () => {};
+
     CaseReport.LoadAsync('_analysis')
         .then(cr => cr.entryDetails(selected).FetchTimeSeriesAsync())
-        .then(ts => plotTimeSeries(ts, canvas));
+        .then(ts => {
+            plotDailyChange(ts, dailyChange);
+            plotGrowthFactor(ts, growthFactor);
+            plotCumulativeCases(ts, cumulativeCases);
+        });
 };

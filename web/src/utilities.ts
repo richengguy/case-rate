@@ -1,5 +1,4 @@
-import { CaseReport } from './analysis';
-import { TimeSeries } from './timeseries';
+import { TimeSeries, ConfidenceInterval } from './timeseries';
 
 /**
  * Get an integer query parameter.
@@ -20,4 +19,29 @@ export function getIntParameter(name: string): number {
     }
 
     return intValue;
+}
+
+/**
+ * Get the correct date range for the given time series.
+ * @param timeSeries a case report time series
+ * @returns the correct data range
+ */
+export function getDates(timeSeries: TimeSeries): Date[] {
+    let previousDays = getIntParameter('pastDays');
+    return pruneArray(timeSeries.dates, previousDays) as Date[];
+}
+
+type SeriesArray = number[] | ConfidenceInterval[] | Date[];
+
+/**
+ * Prune the input time series array so that it retains only the last 'N' days
+ * of data.
+ * @param data
+ *      input array
+ * @param previousDays
+ *      number of days to retain; setting to `null` will retain all array values
+ * @returns the truncated/pruned array
+ */
+export function pruneArray(data: SeriesArray, previousDays?: number): SeriesArray {
+    return previousDays == null ? data : data.slice(-previousDays);
 }
