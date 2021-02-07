@@ -14,7 +14,7 @@ export function getIntParameter(name: string): number {
     }
 
     let intValue = parseInt(stringParam);
-    if (intValue == NaN) {
+    if (isNaN(intValue)) {
         return null;
     }
 

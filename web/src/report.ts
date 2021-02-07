@@ -89,6 +89,9 @@ function plotDailyChange(timeSeries: TimeSeries, context: HTMLCanvasElement) {
             legend: legendConfig,
             scales: {
                 yAxes: [{
+                    ticks: {
+                        min: 0
+                    },
                     scaleLabel: {
                         display: true,
                         labelString: 'Cases'
@@ -168,21 +171,22 @@ function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement)
 }
 
 function setupDateSelection() {
-    const previousDays = Utilities.getIntParameter('pastDays');
-    const availableDays = [60, 90, 180, null];
+    const previousDays = Utilities.getIntParameter('pastDays') ?? 'all';
+    const availableDays = [60, 90, 180, 'all'];
 
-    availableDays.map(value => {
-        let numDays = value ?? 'all';
-
+    availableDays.map(numDays => {
         let a = document.getElementById(`days-${numDays}`) as HTMLAnchorElement;
+
         a.onclick = () => {
             let href = new URL(document.location.href);
             href.searchParams.set('pastDays', numDays.toString());
             document.location.href = href.toString();
         };
+
         if (numDays === previousDays) {
             a.classList.add('font-bold');
         }
+
         return a;
     });
 }
