@@ -11,7 +11,7 @@ interface JsonSeriesData {
     readonly confidenceInterval?: [number, number][]
 }
 
-class ConfidenceInterval {
+export class ConfidenceInterval {
     private _values: [number, number];
 
     public constructor(values: [number, number]) {
@@ -29,7 +29,7 @@ class ConfidenceInterval {
     public get lowerInterval(): number { return this._values[1]; }
 }
 
-class SeriesData {
+export class SeriesData {
     private _raw: number[];
     private _interpolated: number[];
     private _confidence: ConfidenceInterval[]
