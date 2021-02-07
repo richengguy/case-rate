@@ -6,7 +6,6 @@ import { TimeSeries, SeriesData, ConfidenceInterval } from './timeseries';
 import * as Utilities from './utilities';
 
 
-
 function rawDataPlot(seriesData: SeriesData, previousDays?: number): Chart.ChartDataSets {
     let data = Utilities.pruneArray(seriesData.raw, previousDays) as number[];
     return {
@@ -168,22 +167,62 @@ function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement)
     });
 }
 
-window.onload = () => {
-    let dailyChange = document.getElementById('daily-change') as HTMLCanvasElement;
-    let growthFactor = document.getElementById('growth-factor') as HTMLCanvasElement;
-    let cumulativeCases = document.getElementById('cumulative-cases') as HTMLCanvasElement;
+function setupDateSelection() {
+    const previousDays = Utilities.getIntParameter('pastDays');
+    const availableDays = [60, 90, 180, null];
 
+    availableDays.map(value => {
+        let numDays = value ?? 'all';
+
+        let a = document.getElementById(`days-${numDays}`) as HTMLAnchorElement;
+        a.onclick = () => {
+            let href = new URL(document.location.href);
+            href.searchParams.set('pastDays', numDays.toString());
+            document.location.href = href.toString();
+        };
+        if (numDays === previousDays) {
+            a.classList.add('font-bold');
+        }
+        return a;
+    });
+}
+
+window.onload = () => {
     let selected = Utilities.getIntParameter('selected');
     if (selected == null) {
         throw new Error('No particular case report data was selected.');
     }
 
+    setupDateSelection();
+
     // Disable legend selection.
     Chart.defaults.global.legend.onClick = () => {};
 
     CaseReport.LoadAsync('_analysis')
-        .then(cr => cr.entryDetails(selected).FetchTimeSeriesAsync())
+        .then(cr => {
+            let infoDateGenerated = document.getElementById('info-date-generated');
+            let infoRegion = document.getElementById('info-region');
+            let infoSource = document.getElementById('info-source') as HTMLAnchorElement;
+
+            let entry = cr.entryDetails(selected);
+            infoDateGenerated.innerText = cr.generatedOn.toDateString();
+
+            if (entry.region) {
+                infoRegion.innerText = `${entry.country} - ${entry.region}`;
+            } else {
+                infoRegion.innerText = entry.country;
+            }
+
+            infoSource.href = entry.source.url;
+            infoSource.innerText = entry.source.name;
+
+            return entry.FetchTimeSeriesAsync()
+        })
         .then(ts => {
+            let dailyChange = document.getElementById('daily-change') as HTMLCanvasElement;
+            let growthFactor = document.getElementById('growth-factor') as HTMLCanvasElement;
+            let cumulativeCases = document.getElementById('cumulative-cases') as HTMLCanvasElement;
+
             plotDailyChange(ts, dailyChange);
             plotGrowthFactor(ts, growthFactor);
             plotCumulativeCases(ts, cumulativeCases);
