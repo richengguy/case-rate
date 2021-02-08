@@ -161,7 +161,7 @@ class JHUCSSESource(InputSource):
                 stdout, stderr = _git('pull', cwd=path)
         else:
             click.echo(f'Cloning "{repo}" to "{path}".')
-            stdout, stderr = _git('clone', repo, path.as_posix())
+            stdout, stderr = _git('clone', '--depth', '1', repo, path.as_posix())
 
         if len(stdout) != 0:
             click.secho('stdout', fg='green', bold=True)
