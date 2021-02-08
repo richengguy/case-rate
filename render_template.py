@@ -9,7 +9,7 @@ import jinja2
 @click.command()
 @click.option('--templates', help='Path to templates folder', metavar='DIR',
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
-              default='html')
+              default='templates')
 @click.option('--timezone', help='Time zone string', metavar='TZ',
               type=str, default='America/Toronto')
 @click.argument('src', type=str)

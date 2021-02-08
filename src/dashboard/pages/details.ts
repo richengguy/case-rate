@@ -1,9 +1,9 @@
 import * as Chart from 'chart.js';
 
-import * as Colours from './colourTheme';
-import { CaseReport } from './analysis';
-import { TimeSeries, SeriesData, ConfidenceInterval } from './timeseries';
-import * as Utilities from './utilities';
+import * as Colours from '../colourTheme';
+import { CaseReport } from '../analysis';
+import { TimeSeries, SeriesData, ConfidenceInterval } from '../timeseries';
+import * as Utilities from '../utilities';
 
 
 function rawDataPlot(seriesData: SeriesData, previousDays?: number): Chart.ChartDataSets {

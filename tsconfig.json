@@ -1,7 +1,8 @@
 {
-    "include": ["src/**/*"],
+    "include": ["src/dashboard/**/*"],
     "exclude": ["node_modules"],
     "compilerOptions": {
+        "outDir": "build/lib/dashboard",
         "noImplicitAny": true,
         "removeComments": true,
         "target": "ES6",
