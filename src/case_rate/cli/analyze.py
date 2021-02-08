@@ -105,9 +105,9 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
 @click.option('-o', '--output', help='Location of the output files.',
               default='_analysis',
               type=click.Path(dir_okay=True, file_okay=False))
-@click.option('--min-confirmed', nargs=1, type=int, default=1,
+@click.option('--min-confirmed', nargs=1, type=int, default=100, show_default=True,
               help='Remove entries lower that the minimum confirmed number.')
-@click.option('--filter-window', nargs=1, type=int, default=7,
+@click.option('--filter-window', nargs=1, type=int, default=14, show_default=True,
               help='Window size when performing least-squares.')
 @click.pass_obj
 def command(config: dict, countries: Tuple[str], output: str,
