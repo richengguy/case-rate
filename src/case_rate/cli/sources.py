@@ -1,6 +1,7 @@
 import click
 
 from .. import sources
+from ..storage import InputSource
 
 
 @click.command('sources')
@@ -31,7 +32,8 @@ def command(config: dict, action: str):
     elif action == 'update':
         click.secho('Updating Sources: ', bold=True)
 
-    for key, SourceCls in sources.DATA_SOURCES.items():
+    SourceCls: InputSource
+    for key, SourceCls in sources.DATA_SOURCES.items():  # type: ignore
         if action == 'list':
             click.echo(f'  Name: {SourceCls.name()}')
             click.echo(f'  Description: {SourceCls.details()}')

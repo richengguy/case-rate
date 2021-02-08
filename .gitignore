@@ -1,6 +1,10 @@
 # Misc.
+_analysis
 .vscode
 covid19-data
+
+# Node JS
+node_modules/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

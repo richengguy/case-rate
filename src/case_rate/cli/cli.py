@@ -3,7 +3,7 @@ import pathlib
 import click
 import toml
 
-from . import info, report, sources
+from . import analyze, info, report, sources
 from .. import VERSION
 
 
@@ -34,6 +34,7 @@ def main(ctx: click.Context, config_path):
     click.secho('--', bold=True)
 
 
+main.add_command(analyze.command)
 main.add_command(info.command)
 main.add_command(report.command)
 main.add_command(sources.command)
