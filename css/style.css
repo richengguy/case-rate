@@ -4,6 +4,24 @@
 
 @layer components
 {
+    h1
+    {
+        @apply my-2;
+        @apply text-3xl;
+    }
+
+    .link
+    {
+        @apply hover:underline;
+        @apply hover:text-blue-700;
+    }
+
+    .link-icon
+    {
+        width: 16px;
+        @apply inline;
+    }
+
     .selection-list > li
     {
         float: left;
