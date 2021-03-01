@@ -103,14 +103,21 @@ export class ReportEntry {
     }
 }
 
+export interface ReportConfig {
+    filterWindow: number;
+    minConfirmed: number;
+}
+
 /**
  * Contains the set of all available case rate analyses.
  */
 export class CaseReport {
+    private _config: ReportConfig;
     private _generated: Date;
     private _regions: ReportEntry[];
 
-    protected constructor(generated: Date, regions: ReportEntry[]) {
+    protected constructor(generated: Date, regions: ReportEntry[], config: ReportConfig) {
+        this._config = config;
         this._generated = generated;
         this._regions = regions;
     }
@@ -122,6 +129,11 @@ export class CaseReport {
     public entryDetails(i: number): ReportEntry {
         return this._regions[i];
     }
+
+    /**
+     * The filtering parameters used to generate the report.
+     */
+    public get configuration(): ReportConfig { return this._config; }
 
     /**
      * The date when the analysis was generated.
@@ -143,7 +155,8 @@ export class CaseReport {
         const jsonData = await response.json();
         return new CaseReport(
             new Date(jsonData['generated']),
-            (<object[]>jsonData['regions']).map(item => new ReportEntry(url, item))
+            (<object[]>jsonData['regions']).map(item => new ReportEntry(url, item)),
+            jsonData['config']
         );
     }
 }

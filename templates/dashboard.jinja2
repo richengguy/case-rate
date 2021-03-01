@@ -3,33 +3,40 @@
 
 <h1>COVID-19 Dashboard</h1>
 
+<table>
+    <tr>
+        <td class="pr-8 font-semibold">Date Generated:</td>
+        <td id="date-generated"></td>
+    </tr>
+</table>
+
 <div class="flex-col" id="dashboard">
 </div>
 
 <template id="__template">
-    <div>
-        <h2 class="text-xl countryName">Country</h2>
+    <div class="py-2">
+        <h2 class="text-xl country-name">Country</h2>
         <div class="flex">
             <div class="w-3/5">
-                <canvas id="chart">
+                <canvas class="chart">
             </div>
             <div class="w-2/5">
                 <table>
                     <tr>
                         <td class="pr-8 font-semibold">New Cases:</td>
-                        <td class="newCases">123</td>
+                        <td class="new-cases">123</td>
                     </tr>
                     <tr>
                         <td class="pr-8 font-semibold">Total Confirmed:</td>
-                        <td class="totalConfirmed">1234</td>
+                        <td class="total-confirmed">1234</td>
                     </tr>
                     <tr>
                         <td class="pr-8 font-semibold">Relative Growth:</td>
-                        <td class="relativeGrowth">-2%</td>
+                        <td class="relative-growth">-2%</td>
                     </tr>
                     <tr>
                         <td>
-                            <a href="" class="detailsLink link">Details</a>
+                            <a href="" class="details-link link">Details</a>
                             <!-- Icon from https://heroicons.com/ -->
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="link-icon">
                                 <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd" />
