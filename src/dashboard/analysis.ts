@@ -103,25 +103,75 @@ export class ReportEntry {
     }
 }
 
+export interface ReportConfig {
+    filterWindow: number;
+    minConfirmed: number;
+}
+
 /**
  * Contains the set of all available case rate analyses.
  */
 export class CaseReport {
+    private _config: ReportConfig;
     private _generated: Date;
     private _regions: ReportEntry[];
 
-    protected constructor(generated: Date, regions: ReportEntry[]) {
+    protected constructor(generated: Date, regions: ReportEntry[], config: ReportConfig) {
+        this._config = config;
         this._generated = generated;
         this._regions = regions;
     }
 
     /**
-     * Information about an entry within the case report.
+     * Information about an entry within the case report, by index.
      * @param i report entry index
+     * @returns the case report entry
      */
     public entryDetails(i: number): ReportEntry {
         return this._regions[i];
     }
+
+    /**
+     * Information about an entry within the case report, by name.
+     * @param country top-level country name
+     * @param region subnational (province, state, etc.) name
+     * @returns the case report entry; will be `null` if it cannot be found
+     */
+    public entryDetailsByName(country: string, region?: string): ReportEntry {
+        for (const entry of this._regions) {
+            let countryMatches = country === entry.country;
+            let regionMatches = region === entry.region;
+            if (countryMatches && regionMatches) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get all case reports for all subnational regions associated with a
+     * country.
+     * @param country top-level country name
+     * @returns the names of all available regions (province, state, etc.)
+     */
+    public listSubnationalRegions(country: string): string[] {
+        let regions: string[] = [];
+        for (const entry of this._regions) {
+            if (entry.region === null) {
+                continue;
+            }
+            if (entry.country !== country) {
+                continue;
+            }
+            regions.push(entry.region);
+        }
+        return regions;
+    }
+
+    /**
+     * The filtering parameters used to generate the report.
+     */
+    public get configuration(): ReportConfig { return this._config; }
 
     /**
      * The date when the analysis was generated.
@@ -143,7 +193,8 @@ export class CaseReport {
         const jsonData = await response.json();
         return new CaseReport(
             new Date(jsonData['generated']),
-            (<object[]>jsonData['regions']).map(item => new ReportEntry(url, item))
+            (<object[]>jsonData['regions']).map(item => new ReportEntry(url, item)),
+            jsonData['config']
         );
     }
 }

@@ -1,74 +1,21 @@
 import * as Chart from 'chart.js';
 
-import * as Colours from '../colourTheme';
-import { CaseReport } from '../analysis';
-import { TimeSeries, SeriesData, ConfidenceInterval } from '../timeseries';
+import { CaseReport, ReportEntry } from '../analysis';
+import * as Plotting from '../plotting';
+import { TimeSeries } from '../timeseries';
 import * as Utilities from '../utilities';
 
-
-function rawDataPlot(seriesData: SeriesData, previousDays?: number): Chart.ChartDataSets {
-    let data = Utilities.pruneArray(seriesData.raw, previousDays) as number[];
-    return {
-        type: 'bar',
-        label: 'Reported',
-        data: data,
-        backgroundColor: Colours.kRawDataColour,
-        barPercentage: 1.0,
-        categoryPercentage: 1.0,
-    }
-}
-
-function interpDataPlot(seriesData: SeriesData, previousDays?: number): Chart.ChartDataSets {
-    let data = Utilities.pruneArray(seriesData.interpolated, previousDays) as number[];
-    return {
-        type: 'line',
-        label: 'LOESS Filtered',
-        data: data,
-        backgroundColor: Colours.kInterpolatedDataColour,
-        borderColor: Colours.kInterpolatedDataColour,
-        fill: false,
-        pointRadius: 0,
-        borderWidth: 1.5,
-        cubicInterpolationMode: undefined
-    }
-}
-
-function confIntervalPlot(seriesData: SeriesData, previousDays?: number): Chart.ChartDataSets[] {
-    let data = Utilities.pruneArray(seriesData.confidenceIntervals, previousDays) as ConfidenceInterval[];
-    let upperCi = data.map(ci => ci.upperInterval);
-    let lowerCi = data.map(ci => ci.lowerInterval);
-
-    return [{
-        type: 'line',
-        label: 'LOESS Confidence',
-        data: upperCi,
-        fill: false,
-        pointRadius: 0,
-        borderWidth: 1,
-        borderDash: [5, 5],
-        borderColor: Colours.kConfidenceIntervalColour,
-    }, {
-        type: 'line',
-        label: 'LOESS Confidence - Lower',
-        data: lowerCi,
-        fill: false,
-        pointRadius: 0,
-        borderWidth: 1,
-        borderDash: [5, 5],
-        borderColor: Colours.kConfidenceIntervalColour,
-    }]
-}
 
 function plotDailyChange(timeSeries: TimeSeries, context: HTMLCanvasElement) {
     let previousDays = Utilities.getIntParameter('pastDays');
     let dailyChange = timeSeries.series['dailyChange'];
-    let ciDataset = confIntervalPlot(dailyChange, previousDays);
+    let ciDataset = Plotting.confIntervalPlot(dailyChange, previousDays);
 
     let datasets: Chart.ChartDataSets[] = [
-        interpDataPlot(dailyChange, previousDays),
+        Plotting.interpDataPlot(dailyChange, previousDays),
         ciDataset[0],
         ciDataset[1],
-        rawDataPlot(dailyChange, previousDays)
+        Plotting.rawDataPlot(dailyChange, previousDays)
     ];
 
     let legendConfig: Chart.ChartLegendOptions = {
@@ -106,7 +53,7 @@ function plotGrowthFactor(timeSeries: TimeSeries, context: HTMLCanvasElement) {
     let previousDays = Utilities.getIntParameter('pastDays');
     let growthFactor = timeSeries.series['growthFactor'];
 
-    let dataset = interpDataPlot(growthFactor, previousDays);
+    let dataset = Plotting.interpDataPlot(growthFactor, previousDays);
     for (let i = 0; i < dataset.data.length; i++) {
         let gf = dataset.data[i] as number;
         dataset.data[i] = (gf - 1) * 100;
@@ -145,8 +92,8 @@ function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement)
     let previousDays = Utilities.getIntParameter('pastDays');
     let totalCases = timeSeries.series['cases'];
 
-    let rawCounts = rawDataPlot(totalCases, previousDays);
-    let interpolated = interpDataPlot(totalCases, previousDays);
+    let rawCounts = Plotting.rawDataPlot(totalCases, previousDays);
+    let interpolated = Plotting.interpDataPlot(totalCases, previousDays);
 
     new Chart(context, {
         type: 'line',
@@ -168,6 +115,45 @@ function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement)
             }
         }
     });
+}
+
+function setupRegionSelection(infoRegion: HTMLElement, entry: ReportEntry, regionNames: string[]) {
+    if (regionNames.length === 0) {
+        infoRegion.innerText = entry.country;
+        return;
+    }
+
+    infoRegion.innerText = `${entry.country} - `;
+    let selection = document.createElement('select');
+
+    let defaultOption = document.createElement('option');
+    defaultOption.innerText = 'National';
+    defaultOption.onclick = () => {
+        let href = new URL(document.location.href);
+        href.searchParams.delete('region');
+        document.location.href = href.toString();
+    }
+    selection.appendChild(defaultOption);
+
+    let currentRegion = Utilities.getStringParameter('region');
+    for (const name of regionNames) {
+        let option = document.createElement('option');
+
+        option.innerText = name;
+        option.onclick = () => {
+            let href = new URL(document.location.href);
+            href.searchParams.set('region', name);
+            document.location.href = href.toString();
+        }
+
+        if (name === currentRegion) {
+            option.selected = true;
+        }
+
+        selection.appendChild(option);
+    }
+
+    infoRegion.appendChild(selection);
 }
 
 function setupDateSelection() {
@@ -192,8 +178,10 @@ function setupDateSelection() {
 }
 
 window.onload = () => {
-    let selected = Utilities.getIntParameter('selected');
-    if (selected == null) {
+    let country = Utilities.getStringParameter('country');
+    let region = Utilities.getStringParameter('region');
+
+    if (country == null) {
         throw new Error('No particular case report data was selected.');
     }
 
@@ -208,14 +196,9 @@ window.onload = () => {
             let infoRegion = document.getElementById('info-region');
             let infoSource = document.getElementById('info-source') as HTMLAnchorElement;
 
-            let entry = cr.entryDetails(selected);
+            let entry = cr.entryDetailsByName(country, region);
             infoDateGenerated.innerText = cr.generatedOn.toDateString();
-
-            if (entry.region) {
-                infoRegion.innerText = `${entry.country} - ${entry.region}`;
-            } else {
-                infoRegion.innerText = entry.country;
-            }
+            setupRegionSelection(infoRegion, entry, cr.listSubnationalRegions(entry.country));
 
             infoSource.href = entry.source.url;
             infoSource.innerText = entry.source.name;

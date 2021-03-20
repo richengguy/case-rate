@@ -1,14 +1,22 @@
 import { TimeSeries, ConfidenceInterval } from './timeseries';
 
 /**
+ * Get a string query parameter.
+ * @param name URL query parameter name
+ * @returns the parameter's value or `null` if it doesn't exist
+ */
+export function getStringParameter(name: string): string {
+    let url = new URL(document.location.href);
+    return url.searchParams.get(name);
+}
+
+/**
  * Get an integer query parameter.
  * @param name URL query parameter name
  * @returns the parameter's integer value or `null` if it can't be parsed
  */
 export function getIntParameter(name: string): number {
-    let url = new URL(document.location.href);
-    let stringParam = url.searchParams.get(name);
-
+    let stringParam = getStringParameter(name);
     if (stringParam == null) {
         return null;
     }
