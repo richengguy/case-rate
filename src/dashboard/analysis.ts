@@ -149,6 +149,26 @@ export class CaseReport {
     }
 
     /**
+     * Get all case reports for all subnational regions associated with a
+     * country.
+     * @param country top-level country name
+     * @returns the names of all available regions (province, state, etc.)
+     */
+    public listSubnationalRegions(country: string): string[] {
+        let regions: string[] = [];
+        for (const entry of this._regions) {
+            if (entry.region === null) {
+                continue;
+            }
+            if (entry.country !== country) {
+                continue;
+            }
+            regions.push(entry.region);
+        }
+        return regions;
+    }
+
+    /**
      * The filtering parameters used to generate the report.
      */
     public get configuration(): ReportConfig { return this._config; }
