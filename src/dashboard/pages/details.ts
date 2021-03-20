@@ -1,6 +1,6 @@
 import * as Chart from 'chart.js';
 
-import { CaseReport } from '../analysis';
+import { CaseReport, ReportEntry } from '../analysis';
 import * as Plotting from '../plotting';
 import { TimeSeries } from '../timeseries';
 import * as Utilities from '../utilities';
@@ -117,6 +117,45 @@ function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement)
     });
 }
 
+function setupRegionSelection(infoRegion: HTMLElement, entry: ReportEntry, regionNames: string[]) {
+    if (regionNames.length === 0) {
+        infoRegion.innerText = entry.country;
+        return;
+    }
+
+    infoRegion.innerText = `${entry.country} - `;
+    let selection = document.createElement('select');
+
+    let defaultOption = document.createElement('option');
+    defaultOption.innerText = 'National';
+    defaultOption.onclick = () => {
+        let href = new URL(document.location.href);
+        href.searchParams.delete('region');
+        document.location.href = href.toString();
+    }
+    selection.appendChild(defaultOption);
+
+    let currentRegion = Utilities.getStringParameter('region');
+    for (const name of regionNames) {
+        let option = document.createElement('option');
+
+        option.innerText = name;
+        option.onclick = () => {
+            let href = new URL(document.location.href);
+            href.searchParams.set('region', name);
+            document.location.href = href.toString();
+        }
+
+        if (name === currentRegion) {
+            option.selected = true;
+        }
+
+        selection.appendChild(option);
+    }
+
+    infoRegion.appendChild(selection);
+}
+
 function setupDateSelection() {
     const previousDays = Utilities.getIntParameter('pastDays') ?? 'all';
     const availableDays = [60, 90, 180, 'all'];
@@ -159,12 +198,7 @@ window.onload = () => {
 
             let entry = cr.entryDetailsByName(country, region);
             infoDateGenerated.innerText = cr.generatedOn.toDateString();
-
-            if (entry.region) {
-                infoRegion.innerText = `${entry.country} - ${entry.region}`;
-            } else {
-                infoRegion.innerText = entry.country;
-            }
+            setupRegionSelection(infoRegion, entry, cr.listSubnationalRegions(entry.country));
 
             infoSource.href = entry.source.url;
             infoSource.innerText = entry.source.name;
