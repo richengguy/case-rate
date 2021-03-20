@@ -1,9 +1,48 @@
 import * as Chart from 'chart.js';
 
-import * as Colours from '../colourTheme';
 import { CaseReport, ReportEntry } from '../analysis';
-import { TimeSeries, SeriesData, ConfidenceInterval } from '../timeseries';
+import * as Plotting from '../plotting';
+import { SeriesData, TimeSeries } from '../timeseries';
 import * as Utilities from '../utilities';
+
+function plotDailyChanges(context: HTMLCanvasElement, dailyChange: SeriesData, totalDays: Date[], previousDays: number) {
+    let datasets: Chart.ChartDataSets[] = [
+        Plotting.interpDataPlot(dailyChange, previousDays),
+        Plotting.rawDataPlot(dailyChange, previousDays)
+    ];
+
+    totalDays = Utilities.pruneArray(totalDays, previousDays) as Date[];
+
+    new Chart(context, {
+        type: 'line',
+        data: {
+            labels: totalDays,
+            datasets: datasets
+        },
+        options: {
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        min: 0
+                    },
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Cases'
+                    }
+                }]
+            }
+        }
+    });
+}
+
+function setDetailsPage(stats: HTMLElement, entry: ReportEntry) {
+    let element = stats.querySelector('.details-link') as HTMLAnchorElement;
+    if (entry.region === null) {
+        element.href = `details.html?country=${entry.country}`;
+    } else {
+        element.href = `details.html?country=${entry.country}&region=${entry.region}`;
+    }
+}
 
 function setGrowthFactor(stats: HTMLElement, field: string, data: number[]) {
     let element = stats.querySelector(`.${field}`);
@@ -17,6 +56,25 @@ function setNumericalValue(stats: HTMLElement, field: string, data: number[]) {
     let element = stats.querySelector(`.${field}`);
     const length = data.length;
     element.textContent = data[length-1].toLocaleString();
+}
+
+class RenderJob {
+    private _container: HTMLElement;
+    private _dailyChange: SeriesData;
+    private _dates: Date[];
+    private _index: number;
+
+    public constructor(index: number, timeSeries: TimeSeries, container: HTMLElement) {
+        this._index = index;
+        this._container = container;
+        this._dailyChange = timeSeries.series['dailyChange'];
+        this._dates = Utilities.getDates(timeSeries);
+    }
+
+    public get container(): HTMLElement { return this._container; }
+    public get dailyChange(): SeriesData { return this._dailyChange; }
+    public get dates(): Date[] { return this._dates; }
+    public get index(): number { return this._index; }
 }
 
 /**
@@ -35,7 +93,7 @@ class RegionStatisticsFactory {
         this._template = template;
     }
 
-    public async RenderAsync(reportEntry: ReportEntry): Promise<HTMLElement> {
+    public async RenderAsync(index: number, reportEntry: ReportEntry): Promise<RenderJob> {
         let statistics = this._template.content.cloneNode(true) as HTMLElement;
         let countryName = statistics.querySelector('.country-name');
         countryName.textContent = reportEntry.country;
@@ -44,8 +102,12 @@ class RegionStatisticsFactory {
         setNumericalValue(statistics, 'new-cases', timeSeries.series['dailyChange'].raw);
         setNumericalValue(statistics, 'total-confirmed', timeSeries.series['cases'].raw);
         setGrowthFactor(statistics, 'relative-growth', timeSeries.series['growthFactor'].interpolated);
+        setDetailsPage(statistics, reportEntry);
 
-        return statistics;
+        let chart = statistics.querySelector('.daily-cases-chart') as HTMLCanvasElement;
+        chart.id = `cases-${index}`;
+
+        return new RenderJob(index, timeSeries, statistics);
     }
 }
 
@@ -61,21 +123,28 @@ window.onload = () => {
     CaseReport.LoadAsync('_analysis')
         .then(cr => {
             dateGenerated.innerText = cr.generatedOn.toDateString();
-            let jobs: Promise<HTMLElement>[] = [];
+            let jobs: Promise<RenderJob>[] = [];
             for (let i = 0; i < cr.numberOfEntries; i++) {
                 let entry = cr.entryDetails(i);
                 if (entry.region !== null) {
                     continue;
                 }
 
-                jobs.push(factory.RenderAsync(entry));
+                jobs.push(factory.RenderAsync(i, entry));
             }
 
             return Promise.all(jobs);
         })
-        .then(statistics => {
-            for (const block of statistics) {
-                dashboard.appendChild(block);
+        .then(renderJobs => {
+            for (const job of renderJobs) {
+                dashboard.appendChild(job.container);
+            }
+            return renderJobs;
+        })
+        .then(renderJobs => {
+            for (const job of renderJobs) {
+                let chart = document.getElementById(`cases-${job.index}`) as HTMLCanvasElement;
+                plotDailyChanges(chart, job.dailyChange, job.dates, 90);
             }
         });
 };
