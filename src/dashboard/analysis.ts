@@ -123,11 +123,29 @@ export class CaseReport {
     }
 
     /**
-     * Information about an entry within the case report.
+     * Information about an entry within the case report, by index.
      * @param i report entry index
+     * @returns the case report entry
      */
     public entryDetails(i: number): ReportEntry {
         return this._regions[i];
+    }
+
+    /**
+     * Information about an entry within the case report, by name.
+     * @param country top-level country name
+     * @param region subnational (province, state, etc.) name
+     * @returns the case report entry; will be `null` if it cannot be found
+     */
+    public entryDetailsByName(country: string, region?: string): ReportEntry {
+        for (const entry of this._regions) {
+            let countryMatches = country === entry.country;
+            let regionMatches = region === entry.region;
+            if (countryMatches && regionMatches) {
+                return entry;
+            }
+        }
+        return null;
     }
 
     /**

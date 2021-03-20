@@ -192,8 +192,10 @@ function setupDateSelection() {
 }
 
 window.onload = () => {
-    let selected = Utilities.getIntParameter('selected');
-    if (selected == null) {
+    let country = Utilities.getStringParameter('country');
+    let region = Utilities.getStringParameter('region');
+
+    if (country == null) {
         throw new Error('No particular case report data was selected.');
     }
 
@@ -208,7 +210,7 @@ window.onload = () => {
             let infoRegion = document.getElementById('info-region');
             let infoSource = document.getElementById('info-source') as HTMLAnchorElement;
 
-            let entry = cr.entryDetails(selected);
+            let entry = cr.entryDetailsByName(country, region);
             infoDateGenerated.innerText = cr.generatedOn.toDateString();
 
             if (entry.region) {
