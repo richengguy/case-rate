@@ -20,8 +20,5 @@
     "build:html_details": "python render_template.py details.jinja2 dist/details.html",
     "build:js": "npm run build:ts && webpack",
     "build:ts": "tsc"
-  },
-  "dependencies": {
-    "@tailwindcss/forms": "^0.2.1"
   }
 }
