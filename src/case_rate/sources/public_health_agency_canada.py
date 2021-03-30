@@ -10,6 +10,9 @@ from case_rate._types import Cases, CaseTesting, PathLike
 from case_rate.storage import InputSource
 
 
+CSV_SIZE_LIMIT = 10  # 10 Mb
+
+
 def _download(url: str, filename: pathlib.Path):
     '''Retrieve the contents at the specified URL and save it to disk.
 
@@ -23,9 +26,9 @@ def _download(url: str, filename: pathlib.Path):
     click.echo(f'Downloading {url}')
     response = requests.get(url)
     nbytes = len(response.content)
-    if nbytes > 2**20:
+    if nbytes > CSV_SIZE_LIMIT*2**20:
         raise ValueError(
-            f'Server response was larger than 1 Mb {nbytes}; '
+            f'Server response was larger than {CSV_SIZE_LIMIT} Mb {nbytes}; '
             'something is off with the source.')
 
     with filename.open('w') as f:
