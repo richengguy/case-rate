@@ -4,35 +4,10 @@ import pathlib
 from typing import Generator
 
 import click
-import requests
 
 from case_rate._types import Cases, CaseTesting, PathLike
+from case_rate.sources._utilities import download_file
 from case_rate.storage import InputSource
-
-
-def _download(url: str, filename: pathlib.Path):
-    '''Retrieve the contents at the specified URL and save it to disk.
-
-    Parameters
-    ----------
-    url : str
-        URL to retrieve
-    filename : path
-        path to where the file will be stored
-    '''
-    click.echo(f'Downloading {url}')
-    response = requests.get(url)
-    nbytes = len(response.content)
-    if nbytes > 2**20:
-        raise ValueError(
-            f'Server response was larger than 1 Mb {nbytes}; '
-            'something is off with the source.')
-
-    with filename.open('w') as f:
-        f.write(response.text)
-
-    click.echo(click.style('\u2713', fg='green', bold=True) +
-               f'...saved to `{filename}`')
 
 
 def _to_date(date: str) -> datetime.date:
@@ -129,10 +104,10 @@ class PublicHealthOntarioSource(InputSource):
         if path.exists():
             if update:
                 click.echo('Updating PHO "Status of COVID-19 cases in Ontario" report.')  # noqa: E501
-                _download(url, path)
+                download_file(url, path)
         else:
             click.echo('Accessing PHO "Status of COVID-19 cases in Ontario" report.')  # noqa: E501
-            _download(url, path)
+            download_file(url, path)
 
         self._info = info
         self._path = path
