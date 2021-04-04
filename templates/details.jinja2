@@ -2,8 +2,8 @@
 {% block contents %}
 
 
-<h1 class="text-3xl my-2">COVID-19 Cases</h1>
-<table class="table-auto">
+<h1 class="text-3xl my-2 ml-1 md:ml-0">COVID-19 Cases</h1>
+<table class="table-auto ml-1 md:ml-0">
     <tr>
         <td class="pr-8 font-semibold">Date</td>
         <td id="info-date-generated"></td>
@@ -25,7 +25,7 @@
     </tr>
 </table>
 
-<div class="mt-6 flex">
+<div class="mt-6 flex ml-1 md:ml-0">
     <span class="font-medium">Show Days: </span>
     <ul class="font-light list-none selection-list">
         <li><a href="#" class="hover:underline" id="days-60">60</a></li>
@@ -35,18 +35,18 @@
     </ul>
 </div>
 
-<div class="chart-container">
-    <h2 class="text-xl mt-8 mb-1">Daily Change</h2>
+<div class="chart-container md:h-96">
+    <h2 class="text-xl mt-8 mb-1 ml-1 md:ml-0">Daily Change</h2>
     <canvas id="daily-change"></canvas>
 </div>
 
-<div class="chart-container">
-    <h2 class="text-xl mt-12 mb-1">Cumulative Cases</h2>
+<div class="chart-container md:h-96">
+    <h2 class="text-xl mt-12 mb-1 ml-1 md:ml-0">Cumulative Cases</h2>
     <canvas id="cumulative-cases"></canvas>
 </div>
 
-<div class="chart-container">
-    <h2 class="text-xl mt-12 mb-1">Estimated Growth</h2>
+<div class="chart-container md:h-96">
+    <h2 class="text-xl mt-12 mb-1 ml-1 md:ml-0">Estimated Growth</h2>
     <canvas id="growth-factor"></canvas>
 </div>
 
