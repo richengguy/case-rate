@@ -13,15 +13,15 @@ help: default
 default:
 	@echo "Usage: make RULE"
 	@echo ""
-	@echo "assets        - compile the static page assets"
-	@echo "report        - generate the default report page"
+	@echo "assets            - compile the static page assets"
+	@echo "report            - generate the default report page"
 	@echo ""
-	@echo "css           - compile app style sheets"
-	@echo "html          - compile HTML from template files"
-	@echo "js            - compile javascript"
+	@echo "css               - compile app style sheets"
+	@echo "html              - compile HTML from template files"
+	@echo "js                - compile javascript"
 	@echo ""
-	@echo "clean         - clean all build artifacts"
-	@echo "test          - run all app tests"
+	@echo "clean             - clean all build artifacts"
+	@echo "test              - run all app tests"
 
 
 assets: css html js
