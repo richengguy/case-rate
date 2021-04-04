@@ -1,9 +1,6 @@
 #!/bin/bash
 set -eu
 
-cp index.html gh-pages/.
-cp details-*.html gh-pages/.
-
 cd gh-pages
 
 # Need to use the GitHub authentication token to cause a gh-pages build.  More
@@ -16,6 +13,6 @@ git config user.email "richengguy@users.noreply.github.com"
 
 git remote set-url origin "$repo_uri"
 
-git add *.html
+git add .
 git commit -m "Updated on $(date)."
 git push

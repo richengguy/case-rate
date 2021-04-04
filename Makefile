@@ -13,9 +13,9 @@ help: default
 default:
 	@echo "Usage: make RULE"
 	@echo ""
-	@echo "assets            - compile the static page assets"
-	@echo "report            - generate the default report page"
+	@echo "report            - generate a case report"
 	@echo ""
+	@echo "assets            - compile all the static page assets"
 	@echo "css               - compile app style sheets"
 	@echo "html              - compile HTML from template files"
 	@echo "js                - compile javascript"
