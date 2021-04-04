@@ -41,13 +41,13 @@ jobs:
     - name: Generate the nightly report using the latest COVID-19 data.
       run: make report
 
-    - name: Checkout the gh-pages branch in its own folder.
+    - name: Checkout the static-app branch in its own folder.
       uses: actions/checkout@v2
       with:
-        ref: gh-pages
+        ref: static-app
         path: gh-pages
 
-    - name: Commit latest report to the gh-pages branch.
+    - name: Commit latest report to the static-app branch.
       run: |
         cp -R dist/* gh-pages
         ./scripts/update-gh-pages.sh
