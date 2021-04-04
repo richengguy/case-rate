@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="robots" content="noindex, nofollow">
+        <link href="style.css" rel="stylesheet" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.bundle.min.js" integrity="sha512-SuxO9djzjML6b9w9/I07IWnLnQhgyYVSpHZx0JV97kGBfTIsUYlWflyuW4ypnvhBrslz1yJ3R+S14fdCWmSmSA==" crossorigin="anonymous"></script>
+        <title>Case Rate</title>
+    </head>
+    <body>
+        <div class="font-sans container mx-auto w-4/6">
+            
+
+
+<h1 class="text-3xl my-2">COVID-19 Cases</h1>
+<table class="table-auto">
+    <tr>
+        <td class="pr-8 font-semibold">Date</td>
+        <td id="info-date-generated"></td>
+    </tr>
+    <tr>
+        <td class="pr-8 font-semibold">Region</td>
+        <td id="info-region"></td>
+    </tr>
+    <tr>
+        <td class="pr-8 font-semibold">Source</td>
+        <td>
+            <a id="info-source" class="link"></a>
+            <!-- Icon from https://heroicons.com/ -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="link-icon">
+                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+            </svg>
+        </td>
+    </tr>
+</table>
+
+<div class="mt-6 flex">
+    <span class="font-medium">Show Days: </span>
+    <ul class="font-light list-none selection-list">
+        <li><a href="#" class="hover:underline" id="days-60">60</a></li>
+        <li><a href="#" class="hover:underline" id="days-90">90</a></li>
+        <li><a href="#" class="hover:underline" id="days-180">180</a></li>
+        <li><a href="#" class="hover:underline" id="days-all">All Time</a></li>
+    </ul>
+</div>
+
+<div class="chart-container">
+    <h2 class="text-xl mt-8 mb-1">Daily Change</h2>
+    <canvas id="daily-change"></canvas>
+</div>
+
+<div class="chart-container">
+    <h2 class="text-xl mt-12 mb-1">Cumulative Cases</h2>
+    <canvas id="cumulative-cases"></canvas>
+</div>
+
+<div class="chart-container">
+    <h2 class="text-xl mt-12 mb-1">Estimated Growth</h2>
+    <canvas id="growth-factor"></canvas>
+</div>
+
+<script src="details.js"></script>
+
+
+        </div>
+    </body>
+</html>

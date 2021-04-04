@@ -1,0 +1,84 @@
+{
+  "generated": "2021-04-04T21:25:57+00:00",
+  "regions": [
+    {
+      "name": "Canada",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Alberta",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:British Columbia",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Manitoba",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:New Brunswick",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Newfoundland and Labrador",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Nova Scotia",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Ontario",
+      "url": "https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario",
+      "description": "Public Health Ontario - Status of COVID-19 cases in Ontario"
+    },
+    {
+      "name": "Canada:Prince Edward Island",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Quebec",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Saskatchewan",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Northwest Territories",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Nunavut",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "Canada:Yukon",
+      "url": "https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1",
+      "description": "Public Health Agency of Canada - Current Situation"
+    },
+    {
+      "name": "US",
+      "url": "https://github.com/CSSEGISandData/COVID-19/tree/b68faa3ebfc1948224143e42c56e50651e3ab73e",
+      "description": "JHU-CSSE COVID-19 Report"
+    }
+  ],
+  "config": {
+    "filterWindow": 14,
+    "minConfirmed": 10
+  }
+}
