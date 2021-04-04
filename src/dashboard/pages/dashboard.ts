@@ -20,6 +20,7 @@ function plotDailyChanges(context: HTMLCanvasElement, dailyChange: SeriesData, t
             datasets: datasets
         },
         options: {
+            maintainAspectRatio: false,
             scales: {
                 yAxes: [{
                     ticks: {
