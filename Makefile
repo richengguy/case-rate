@@ -1,7 +1,7 @@
 # The structure of this Makefile is based off of the one in Mozilla's ichanea
 # project (https://github.com/mozilla/ichnaea/blob/32c757733c6edddb081346025ea6f64a86cfe12f/Makefile)
 
-POSTCSS := npx postcss
+POSTCSS := NODE_ENV=production npx postcss
 RENDER_TEMPLATE := python render_template.py
 TYPESCRIPT := npx tsc
 WEBPACK := npx webpack
@@ -24,12 +24,13 @@ default:
 	@echo "test              - run all app tests"
 
 
-assets: css html js
+assets: html js css
 
 report: assets
 	@covid19 analyze \
 		--min-confirmed 10 \
 		--output dist/_analysis \
+		--no-indent \
 		-c Canada \
 		-c Canada:Alberta \
 		-c "Canada:British Columbia" \

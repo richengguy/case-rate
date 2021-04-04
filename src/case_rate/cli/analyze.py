@@ -1,7 +1,7 @@
 import datetime
 import json
 import pathlib
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import click
 import numpy as np
@@ -59,7 +59,7 @@ def _output_configuration(output_folder: PathLike,
 
 
 def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
-                     min_confirmed: int, filter_window: int):
+                     no_indent: bool, min_confirmed: int, filter_window: int):
     output_folder = pathlib.Path(output_folder)
     analysis_file = output_folder / pathlib.Path(f'{_process_country_name(country)}.json')
 
@@ -94,7 +94,13 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
     }
 
     with analysis_file.open('wt') as f:
-        json.dump(output, f, default=_datatype_converter, indent=2)
+        args: Dict[str, Any] = {
+            'default': _datatype_converter,
+        }
+        if no_indent is False:
+            args['indent'] = 2
+
+        json.dump(output, f, **args)
 
     click.secho('\u2713', fg='green')
 
@@ -105,12 +111,13 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
 @click.option('-o', '--output', help='Location of the output files.',
               default='_analysis',
               type=click.Path(dir_okay=True, file_okay=False))
+@click.option('--no-indent', is_flag=True, help='Do not indent any JSON output.')
 @click.option('--min-confirmed', nargs=1, type=int, default=100, show_default=True,
               help='Remove entries lower that the minimum confirmed number.')
 @click.option('--filter-window', nargs=1, type=int, default=14, show_default=True,
               help='Window size when performing least-squares.')
 @click.pass_obj
-def command(config: dict, countries: Tuple[str], output: str,
+def command(config: dict, countries: Tuple[str], output: str, no_indent: bool,
             min_confirmed: int, filter_window: int):
     '''Generate an analysis from the COVID-19 case numbers.
 
@@ -165,6 +172,6 @@ def command(config: dict, countries: Tuple[str], output: str,
 
     # Process all of the requested countries/regions.
     for country, timeseries in data.items():
-        _output_analysis(output, country, timeseries, min_confirmed, filter_window)
+        _output_analysis(output, country, timeseries, no_indent, min_confirmed, filter_window)
 
     click.echo('Generated analysis...' + click.style('\u2713', fg='green'))
