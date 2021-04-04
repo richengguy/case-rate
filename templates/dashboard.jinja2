@@ -1,9 +1,9 @@
 {% extends "base.jinja2" %}
 {% block contents %}
 
-<h1>COVID-19 Dashboard</h1>
+<h1 class="text-center md:text-left">COVID-19 Dashboard</h1>
 
-<table>
+<table class="mx-auto md:mx-0">
     <tr>
         <td class="pr-8 font-semibold">Date Generated:</td>
         <td id="date-generated"></td>
@@ -15,7 +15,7 @@
 
 <template id="__template">
     <div class="py-2">
-        <h2 class="text-xl country-name">Country</h2>
+        <h2 class="text-xl country-name text-center md:text-left">Country</h2>
         <div class="flex flex-col md:flex-row">
             <div class="h-64 md:w-3/5">
                 <canvas class="daily-cases-chart">
