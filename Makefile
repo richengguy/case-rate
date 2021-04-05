@@ -58,8 +58,8 @@ test:
 	pytest
 
 dist/.ignore:
-	# @mkdir dist
-	# @touch dist/.ignore
+	@mkdir dist
+	@touch dist/.ignore
 
 dist: dist/.ignore
 	@echo '-- Make dist/ folder...'
