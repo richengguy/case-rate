@@ -12,9 +12,11 @@ import jinja2
               default='templates')
 @click.option('--timezone', help='Time zone string', metavar='TZ',
               type=str, default='America/Toronto')
+@click.option('--page-url', default='http://localhost:8000',
+              envvar='CASE_RATE_URL', help='Page\'s default URL.')
 @click.argument('src', type=str)
 @click.argument('dst', type=click.Path(dir_okay=False))
-def main(templates: str, timezone: str, src: str, dst: str):
+def main(templates: str, timezone: str, page_url: str, src: str, dst: str):
     '''Quickly generate Jinja-based HTML templates.'''
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(templates),
@@ -27,7 +29,7 @@ def main(templates: str, timezone: str, src: str, dst: str):
     today = datetime.datetime.now(tz)
 
     jinja_template = env.get_template(src)
-    html = jinja_template.render(date=today)
+    html = jinja_template.render(date=today, page_url=page_url)
     with output_file.open('wt') as f:
         f.write(html)
 
