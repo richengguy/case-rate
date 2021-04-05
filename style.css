@@ -558,13 +558,26 @@ h1
   line-height: 2.25rem;
 }
 
-.link:hover {
-  text-decoration: underline;
+.link
+    {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  --tw-bg-opacity: 1;
+  background-color: rgba(0, 0, 0, var(--tw-bg-opacity));
+  --tw-text-opacity: 1;
+  color: rgba(255, 255, 255, var(--tw-text-opacity));
 }
 
 .link:hover {
   --tw-text-opacity: 1;
-  color: rgba(29, 78, 216, var(--tw-text-opacity));
+  color: rgba(0, 0, 0, var(--tw-text-opacity));
+}
+
+.link:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgba(243, 244, 246, var(--tw-bg-opacity));
 }
 
 .link-icon
@@ -591,6 +604,14 @@ h1
   flex-direction: column;
 }
 
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
 .font-sans {
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
@@ -611,6 +632,14 @@ h1
   font-weight: 700;
 }
 
+.h-4 {
+  height: 1rem;
+}
+
+.h-64 {
+  height: 16rem;
+}
+
 .text-xl {
   font-size: 1.25rem;
   line-height: 1.75rem;
@@ -625,9 +654,19 @@ h1
   list-style-type: none;
 }
 
+.my-0 {
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+
 .my-2 {
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
+}
+
+.mx-2 {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
 }
 
 .mx-auto {
@@ -649,6 +688,10 @@ h1
 
 .mt-12 {
   margin-top: 3rem;
+}
+
+.mt-auto {
+  margin-top: auto;
 }
 
 .py-2 {
@@ -681,20 +724,16 @@ h1
   table-layout: auto;
 }
 
+.text-center {
+  text-align: center;
+}
+
 .hover\:underline:hover {
   text-decoration: underline;
 }
 
-.w-2\/5 {
-  width: 40%;
-}
-
-.w-3\/5 {
-  width: 60%;
-}
-
-.w-4\/6 {
-  width: 66.666667%;
+.w-4 {
+  width: 1rem;
 }
 
 @-webkit-keyframes spin {
@@ -767,6 +806,43 @@ h1
 }
 
 @media (min-width: 768px) {
+  .md\:flex-row {
+    flex-direction: row;
+  }
+
+  .md\:justify-start {
+    justify-content: flex-start;
+  }
+
+  .md\:h-96 {
+    height: 24rem;
+  }
+
+  .md\:mx-0 {
+    margin-left: 0px;
+    margin-right: 0px;
+  }
+
+  .md\:mx-auto {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .md\:text-left {
+    text-align: left;
+  }
+
+  .md\:w-2\/5 {
+    width: 40%;
+  }
+
+  .md\:w-3\/5 {
+    width: 60%;
+  }
+
+  .md\:w-4\/6 {
+    width: 66.666667%;
+  }
 }
 
 @media (min-width: 1024px) {
