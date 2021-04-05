@@ -33,6 +33,7 @@ function plotDailyChange(timeSeries: TimeSeries, context: HTMLCanvasElement) {
             datasets: datasets
         },
         options: {
+            maintainAspectRatio: false,
             legend: legendConfig,
             scales: {
                 yAxes: [{
@@ -66,6 +67,7 @@ function plotGrowthFactor(timeSeries: TimeSeries, context: HTMLCanvasElement) {
             datasets: [dataset]
         },
         options: {
+            maintainAspectRatio: false,
             legend: {
                 display: false
             },
@@ -105,6 +107,7 @@ function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement)
             ]
         },
         options: {
+            maintainAspectRatio: false,
             scales: {
                 yAxes: [{
                     scaleLabel: {

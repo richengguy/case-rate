@@ -20,6 +20,7 @@ function plotDailyChanges(context: HTMLCanvasElement, dailyChange: SeriesData, t
             datasets: datasets
         },
         options: {
+            maintainAspectRatio: false,
             scales: {
                 yAxes: [{
                     ticks: {
@@ -38,9 +39,9 @@ function plotDailyChanges(context: HTMLCanvasElement, dailyChange: SeriesData, t
 function setDetailsPage(stats: HTMLElement, entry: ReportEntry) {
     let element = stats.querySelector('.details-link') as HTMLAnchorElement;
     if (entry.region === null) {
-        element.href = `details.html?country=${entry.country}`;
+        element.href = `details.html?country=${entry.country}&pastDays=90`;
     } else {
-        element.href = `details.html?country=${entry.country}&region=${entry.region}`;
+        element.href = `details.html?country=${entry.country}&region=${entry.region}&pastDays=90`;
     }
 }
 

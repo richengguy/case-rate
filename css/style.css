@@ -12,8 +12,12 @@
 
     .link
     {
-        @apply hover:underline;
-        @apply hover:text-blue-700;
+        @apply px-1;
+        @apply py-1;
+        @apply bg-black;
+        @apply text-white;
+        @apply hover:text-black;
+        @apply hover:bg-gray-100;
     }
 
     .link-icon

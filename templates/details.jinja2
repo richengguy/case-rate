@@ -1,9 +1,17 @@
 {% extends "base.jinja2" %}
 {% block contents %}
 
+<div class="flex my-2 justify-center md:justify-start">
+    <h1 class="text-3xl my-0">COVID-19 Cases</h1>
+    <a href=".." class="link mt-auto mb-1 mx-2">
+        <!-- Icon from https://heroicons.com/ -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </a>
+</div>
 
-<h1 class="text-3xl my-2">COVID-19 Cases</h1>
-<table class="table-auto">
+<table class="table-auto mx-auto md:mx-0">
     <tr>
         <td class="pr-8 font-semibold">Date</td>
         <td id="info-date-generated"></td>
@@ -25,7 +33,7 @@
     </tr>
 </table>
 
-<div class="mt-6 flex">
+<div class="mt-6 flex flex-col md:flex-row items-center md:justify-start">
     <span class="font-medium">Show Days: </span>
     <ul class="font-light list-none selection-list">
         <li><a href="#" class="hover:underline" id="days-60">60</a></li>
@@ -35,18 +43,18 @@
     </ul>
 </div>
 
-<div class="chart-container">
-    <h2 class="text-xl mt-8 mb-1">Daily Change</h2>
+<div class="chart-container md:h-96">
+    <h2 class="text-xl mt-8 mb-1 text-center md:text-left">Daily Change</h2>
     <canvas id="daily-change"></canvas>
 </div>
 
-<div class="chart-container">
-    <h2 class="text-xl mt-12 mb-1">Cumulative Cases</h2>
+<div class="chart-container md:h-96">
+    <h2 class="text-xl mt-12 mb-1 text-center md:text-left">Cumulative Cases</h2>
     <canvas id="cumulative-cases"></canvas>
 </div>
 
-<div class="chart-container">
-    <h2 class="text-xl mt-12 mb-1">Estimated Growth</h2>
+<div class="chart-container md:h-96">
+    <h2 class="text-xl mt-12 mb-1 text-center md:text-left">Estimated Growth</h2>
     <canvas id="growth-factor"></canvas>
 </div>
 
