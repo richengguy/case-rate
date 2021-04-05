@@ -1,8 +1,16 @@
 {% extends "base.jinja2" %}
 {% block contents %}
 
+<div class="flex my-2 justify-center md:justify-start">
+    <h1 class="text-3xl my-0">COVID-19 Cases</h1>
+    <a href=".." class="link mt-auto mb-1 mx-2">
+        <!-- Icon from https://heroicons.com/ -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </a>
+</div>
 
-<h1 class="text-3xl my-2 text-center md:text-left">COVID-19 Cases</h1>
 <table class="table-auto mx-auto md:mx-0">
     <tr>
         <td class="pr-8 font-semibold">Date</td>
