@@ -34,6 +34,8 @@ jobs:
 
     - name: Generate the nightly report using the latest COVID-19 data.
       run: make report
+      env:
+        CASE_RATE_URL: https://projects.rzeszutek.ca/case-rate/
 
     - name: Checkout the static-app branch in its own folder.
       uses: actions/checkout@v2
