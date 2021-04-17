@@ -21,6 +21,9 @@ class TimeSeries:
     daily_change : np.ndarray
         a convenience accessor to obtain the day-to-day changes via a finite
         difference
+    daily_growth : np.ndarray
+        the amount of growth in the time series, defined as
+        ``daily_change[n]/daily_change[n-1]``
     '''
     def __init__(self, data: List[Datum], field: str, min_value: int = 0):
         '''
@@ -85,6 +88,24 @@ class TimeSeries:
     @property
     def daily_change(self) -> np.ndarray:
         return np.squeeze(np.pad(np.diff(self._samples), (1, 0)))
+
+    @property
+    def daily_growth(self) -> np.ndarray:
+        delta_x = self.daily_change
+        current_delta_x = delta_x[1:]
+        previous_delta_x = delta_x[:-1]
+
+        # The growth value can only be computed if the previous day's change is
+        # non-zero.
+        valid = previous_delta_x > 0
+        undefined = np.logical_and(current_delta_x > 0, previous_delta_x < 1)
+
+        # Compute the growth only where it's well-defined.
+        daily_growth = np.ones_like(current_delta_x)
+        daily_growth[valid] = current_delta_x[valid] / previous_delta_x[valid]
+        daily_growth[undefined] = np.nan
+
+        return np.pad(daily_growth, (1, 0), constant_values=1)
 
     def local_regression(self, window: int, log_domain: bool = False,
                          order: int = 1) -> List[LeastSquares]:
