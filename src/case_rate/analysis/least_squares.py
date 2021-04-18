@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 import scipy.stats
 
@@ -170,8 +172,8 @@ class LeastSquares:
         return self._rmse
 
     @property
-    def noise_variance(self) -> float:
-        return self._noise
+    def standard_error(self) -> float:
+        return np.sqrt(self._noise)
 
     @property
     def weight_variance(self) -> float:
@@ -198,7 +200,7 @@ class LeastSquares:
         ci = c*np.sqrt(self._variances)
         return ci[:, np.newaxis]
 
-    def value(self, time: np.ndarray) -> np.ndarray:
+    def value(self, time: Union[float, np.ndarray]) -> np.ndarray:
         '''Obtain the value from the least-squares regressor.
 
         Parameters

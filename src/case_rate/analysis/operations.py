@@ -147,7 +147,7 @@ def _sequence_growth_factor(sequence: np.ndarray, window: int) -> np.ndarray:
         estimated growth factor at each point in the sequence
     '''
     N = sequence.shape[0]
-    output = np.zeros_like(sequence, dtype=np.float)
+    output = np.zeros_like(sequence, dtype=float)
     output[:] = np.nan
 
     for i in range(N):
