@@ -8,6 +8,35 @@ from .. import filters
 from .._types import Datum
 
 
+def _compute_growth(x: np.ndarray) -> np.ndarray:
+    '''Compute the growth factor for a given sequence.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        N-length input sequence
+
+    Returns
+    -------
+    np.ndarray
+        N-length growth sequence, with the first value being '1'
+    '''
+    current_x = x[1:]
+    previous_x = x[:-1]
+
+    # The growth value can only be computed if the previous day's change is
+    # non-zero.
+    valid = previous_x > 0
+    undefined = np.logical_and(current_x > 0, previous_x < 1)
+
+    # Compute the growth only where it's well-defined.
+    growth = np.ones_like(current_x)
+    growth[valid] = current_x[valid] / previous_x[valid]
+    growth[undefined] = np.nan
+
+    return np.pad(growth, (1, 0), constant_values=1)
+
+
 class TimeSeries:
     '''Represent a set of time series data
 
@@ -91,21 +120,7 @@ class TimeSeries:
 
     @property
     def daily_growth(self) -> np.ndarray:
-        delta_x = self.daily_change
-        current_delta_x = delta_x[1:]
-        previous_delta_x = delta_x[:-1]
-
-        # The growth value can only be computed if the previous day's change is
-        # non-zero.
-        valid = previous_delta_x > 0
-        undefined = np.logical_and(current_delta_x > 0, previous_delta_x < 1)
-
-        # Compute the growth only where it's well-defined.
-        daily_growth = np.ones_like(current_delta_x)
-        daily_growth[valid] = current_delta_x[valid] / previous_delta_x[valid]
-        daily_growth[undefined] = np.nan
-
-        return np.pad(daily_growth, (1, 0), constant_values=1)
+        return _compute_growth(self.daily_change)
 
     def local_regression(self, window: int, log_domain: bool = False,
                          order: int = 1) -> List[LeastSquares]:
