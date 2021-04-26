@@ -2,7 +2,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from .least_squares import LeastSquares
+from .least_squares import evalpoly, LeastSquares
+from .operations import estimate_growth
 from .timeseries import TimeSeries
 
 
@@ -83,7 +84,7 @@ class DailyCasesPredictor:
         Parameters
         ----------
         days : int, optional
-            the number of dails, by default 0 so that it uses the default
+            the number of days, by default 0 so that it uses the default
             analysis window
 
         Returns
@@ -102,7 +103,36 @@ class DailyCasesPredictor:
         if days <= 0:
             days = self.analysis_window
 
-        return self._model.value(np.arange(days))
+        return evalpoly(self.parameters, np.arange(days))
+
+    def confidence_interval(self, days: int = 0, alpha: float = 0.95) -> np.ndarray:
+        '''Return the confidence interval for the growth model.
+
+        Parameters
+        ----------
+        days : int, optional
+            the number of days, by default 0 so that it uses the default
+            analysis window
+
+        Returns
+        -------
+        np.ndarray
+            the confidence interval as an :math:`N \\times 2` array
+
+        Raises
+        ------
+        RuntimeError
+            if the model hasn't been trained
+        '''
+        if self._model is None:
+            raise RuntimeError('Model has not yet been trained.')
+
+        if days <= 0:
+            days = self.analysis_window
+
+        model = self.growth_model(days)
+        confidence = self._model.confidence_fit(np.arange(days), alpha)
+        return np.hstack((model + confidence, model - confidence))
 
     def train(self, ts: TimeSeries) -> Tuple[float, float]:
         '''Train the predictor on some time series.
@@ -126,7 +156,7 @@ class DailyCasesPredictor:
             N-self.reporting_lag)
         self._validation_indices = np.arange(N-self.reporting_lag, N)
 
-        daily_growth = ts.daily_growth
+        daily_growth = estimate_growth(ts, self.analysis_window)
         training_samples = daily_growth[self._training_indices]
 
         # NOTE: This uses zero-based indices so that the regression is relative
@@ -138,14 +168,15 @@ class DailyCasesPredictor:
         self._training_samples = training_samples
 
         daily_cases = ts.daily_change[-(self.reporting_lag+1):]
-        prediction, _ = self.predict(daily_cases[0], self.reporting_lag)
+        prediction, _, _ = self.predict(daily_cases[0], self.reporting_lag)
 
         residuals = prediction - daily_cases
         validation_error = np.sqrt(np.sum(residuals**2)/len(residuals))
 
         return self._model.standard_error, validation_error
 
-    def predict(self, current_count: int, num_days: int = 14) -> Tuple[np.ndarray, np.ndarray]:
+    def predict(self, current_count: int, num_days: int = 14,
+                alpha: float = 0.95) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         '''Predict the next 'N' days, given the current case count.
 
         The prediction always includes the reporting lag so that the first
@@ -163,6 +194,9 @@ class DailyCasesPredictor:
         daily_cases : np.ndarray
             a ``num_days+1`` length array with the prediction ``num_days`` into
             the future, starting with the **first** validation sample
+        confidence : np.ndarray
+            a two-column array containing the predicted cases uses the
+            upper/lower confidence intervals on the growth model
         indices : np.ndarray
             the set of indices that the prediction corresponds to
 
@@ -176,11 +210,20 @@ class DailyCasesPredictor:
 
         indices = np.arange(num_days) + self.analysis_window - 1
         growth = self._model.value(indices)
+        confidence = self._model.confidence_fit(indices, alpha)
+
+        upper_bound = growth + confidence
+        lower_bound = growth - confidence
 
         predicted_cases = np.zeros((num_days+1,))
+        bounds = np.zeros((num_days+1, 2))
+
         predicted_cases[0] = current_count
+        bounds[0, :] = current_count
         for n in range(num_days):
             predicted_cases[n+1] = growth[n]*predicted_cases[n]
+            bounds[n+1, 0] = upper_bound[n]*bounds[n, 0]
+            bounds[n+1, 1] = lower_bound[n]*bounds[n, 1]
 
         series_indices = np.arange(num_days+1) + self._training_indices[-1]
-        return predicted_cases, series_indices
+        return predicted_cases, bounds, series_indices

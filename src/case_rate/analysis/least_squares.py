@@ -160,6 +160,7 @@ class LeastSquares:
 
         self._rmse = np.sqrt(ssr/N)
         self._noise = ssr / (N - K)
+        self._covar = covar * self._noise
         self._variances = np.diag(covar) * self._noise
         self._dof = N - K
 
@@ -180,7 +181,7 @@ class LeastSquares:
         return self._variances
 
     def confidence(self, alpha: float = 0.95) -> np.ndarray:
-        '''Compute the confidence on the least squares solution.
+        '''Compute the confidence on the least squares point solution.
 
         The confidence value is found using the two-sided student's t-test. The
         upper and lower limits for the confidence interval can be found by
@@ -198,6 +199,38 @@ class LeastSquares:
         '''
         c = scipy.stats.t.ppf((1 + alpha)/2, self._dof)
         ci = c*np.sqrt(self._variances)
+        return ci[:, np.newaxis]
+
+    def confidence_fit(self, time: Union[float, np.ndarray], alpha: float = 0.95) -> np.ndarray:
+        '''Compute the confidence on the generated regression.
+
+        This computes the confidence interval of the regression *line* on the
+        domain specified by ``time``.  This is similar to :meth:`confidence`
+        except that it provides the confidence for any estimated value returned
+        by the model, rather than the model parameters.  It can also be used to
+        compute the pencil of possible lines by adding/subtracting the
+        confidence values from the regressed line.
+
+        Parameters
+        ----------
+        time : np.ndarray or float
+            array with ``N`` time samples
+        alpha : float, optional
+            confidence interval, by default 0.95
+
+        Returns
+        -------
+        np.ndarray
+            a :math:`N \\times 1` array containing the confidence value
+        '''
+        if isinstance(time, (float, int)):
+            time = np.array([time])
+
+        n = np.arange(self._weights.shape[0])
+        tn = np.vstack(list(np.power(ti, n) for ti in time))
+
+        stderr = np.sqrt(np.diag((tn @ self._covar) @ tn.T))
+        ci = stderr * scipy.stats.t.ppf((1 + alpha)/2, self._dof)
         return ci[:, np.newaxis]
 
     def value(self, time: Union[float, np.ndarray]) -> np.ndarray:
