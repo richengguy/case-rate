@@ -17,7 +17,7 @@ class DailyCasesPredictor:
     where the case count may be subject to reporting lags.
     '''
     def __init__(self, analysis_window: int = 14, reporting_lag: int = 3,
-                 model_order: int = 1):
+                 model_order: int = 1, filter_window: int = -1):
         '''Initialize the predictor.
 
         Parameters
@@ -30,10 +30,14 @@ class DailyCasesPredictor:
             default 3
         model_order : int, optional
             the order of the regression order, by default 1 or linear
+        filter_window : int, optional
+            size of the filter window used to smooth the input time series, by
+            default is '-1', meaning it is set to the analysis window size
         '''
         self.analysis_window = analysis_window
         self.model_order = model_order
         self.reporting_lag = reporting_lag
+        self.filter_window = filter_window if filter_window > 0 else analysis_window
 
         self._model: Optional[LeastSquares] = None
         self._training_indices = np.zeros((0,))
@@ -134,6 +138,35 @@ class DailyCasesPredictor:
         confidence = self._model.confidence_fit(np.arange(days), alpha)
         return np.hstack((model + confidence, model - confidence))
 
+    def prediction_interval(self, days: int = 0, alpha: float = 0.95) -> np.ndarray:
+        '''Return the prediction interval for the growth model.
+
+        Parameters
+        ----------
+        days : int, optional
+            the number of days, by default 0 so that it uses the default
+            analysis window
+
+        Returns
+        -------
+        np.ndarray
+            the prediction interval as an :math:`N \\times 2` array
+
+        Raises
+        ------
+        RuntimeError
+            if the model hasn't been trained
+        '''
+        if self._model is None:
+            raise RuntimeError('Model has not yet been trained.')
+
+        if days <= 0:
+            days = self.analysis_window
+
+        model = self.growth_model(days)
+        prediction = self._model.prediction_fit(np.arange(days), alpha)
+        return np.hstack((model + prediction, model - prediction))
+
     def train(self, ts: TimeSeries) -> Tuple[float, float]:
         '''Train the predictor on some time series.
 
@@ -156,7 +189,7 @@ class DailyCasesPredictor:
             N-self.reporting_lag)
         self._validation_indices = np.arange(N-self.reporting_lag, N)
 
-        daily_growth = estimate_growth(ts, self.analysis_window)
+        daily_growth = estimate_growth(ts, self.filter_window)
         training_samples = daily_growth[self._training_indices]
 
         # NOTE: This uses zero-based indices so that the regression is relative
@@ -166,6 +199,7 @@ class DailyCasesPredictor:
         indices = np.arange(self.analysis_window)
         self._model = LeastSquares(indices, training_samples, order=self.model_order)
         self._training_samples = training_samples
+        self._validation_samples = daily_growth[self._validation_indices]
 
         daily_cases = ts.daily_change[-(self.reporting_lag+1):]
         prediction, _, _ = self.predict(daily_cases[0], self.reporting_lag)
@@ -210,7 +244,7 @@ class DailyCasesPredictor:
 
         indices = np.arange(num_days) + self.analysis_window - 1
         growth = self._model.value(indices)
-        confidence = self._model.confidence_fit(indices, alpha)
+        confidence = self._model.prediction_fit(indices, alpha)
 
         upper_bound = growth + confidence
         lower_bound = growth - confidence
