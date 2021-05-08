@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 import scipy.stats
 
@@ -158,6 +160,7 @@ class LeastSquares:
 
         self._rmse = np.sqrt(ssr/N)
         self._noise = ssr / (N - K)
+        self._covar = covar * self._noise
         self._variances = np.diag(covar) * self._noise
         self._dof = N - K
 
@@ -170,15 +173,15 @@ class LeastSquares:
         return self._rmse
 
     @property
-    def noise_variance(self) -> float:
-        return self._noise
+    def standard_error(self) -> float:
+        return np.sqrt(self._noise)
 
     @property
     def weight_variance(self) -> float:
         return self._variances
 
     def confidence(self, alpha: float = 0.95) -> np.ndarray:
-        '''Compute the confidence on the least squares solution.
+        '''Compute the confidence on the least squares point solution.
 
         The confidence value is found using the two-sided student's t-test. The
         upper and lower limits for the confidence interval can be found by
@@ -198,7 +201,87 @@ class LeastSquares:
         ci = c*np.sqrt(self._variances)
         return ci[:, np.newaxis]
 
-    def value(self, time: np.ndarray) -> np.ndarray:
+    def confidence_fit(self, time: Union[float, np.ndarray], alpha: float = 0.95) -> np.ndarray:
+        '''Compute the confidence on the generated regression.
+
+        This computes the confidence interval of the regression *line* on the
+        domain specified by ``time``.  This is similar to :meth:`confidence`
+        except that it provides the confidence for any estimated value returned
+        by the model, rather than the model parameters.  It can also be used to
+        compute the pencil of possible lines by adding/subtracting the
+        confidence values from the regressed line.
+
+        See `Confidence Intervals`_ for details.
+
+        .. _Confidence Intervals: http://web.vu.lt/mif/a.buteikis/wp-content/uploads/PE_Book/3-5-UnivarConfInt.html
+
+        Parameters
+        ----------
+        time : np.ndarray or float
+            array with ``N`` time samples
+        alpha : float, optional
+            confidence interval, by default 0.95
+
+        Returns
+        -------
+        np.ndarray
+            a :math:`N \\times 1` array containing the confidence value
+        '''  # noqa: E501
+        if isinstance(time, (float, int)):
+            time = np.array([time])
+
+        n = np.arange(self._weights.shape[0])
+        tn = np.vstack(list(np.power(ti, n) for ti in time))
+
+        stderr = np.sqrt(np.diag((tn @ self._covar) @ tn.T))
+        ci = stderr * scipy.stats.t.ppf((1 + alpha)/2, self._dof)
+        return ci[:, np.newaxis]
+
+    def prediction_fit(self, time: Union[float, np.ndarray], alpha: float = 0.95) -> np.ndarray:
+        '''Compute the prediction band on the generated regression.
+
+        Similar to :meth:`confidence_fit`, this method computes the prediction
+        interval for the regression line.  It answers the question, "given some
+        value of 't', where is a predicted sample 'y' likely to be within some
+        confidence?"
+
+        Put another way, the prediction interval tells you how likely you are to
+        see an observation within some distance from the regression line.  The
+        confidence interval is how certain you are about the position of the
+        line.  Because the prediction interval contains the confidence interval,
+        the resulting calculation is very similar.
+
+        See `OLS Prediction and Prediction Intervals`_ for details.
+
+        .. _OLS Prediction and Prediction Intervals: http://web.vu.lt/mif/a.buteikis/wp-content/uploads/PE_Book/3-7-UnivarPredict.html
+
+        Parameters
+        ----------
+        time : np.ndarray or float
+            array with ``N`` time samples
+        alpha : float, optional
+            confidence interval, by default 0.95
+
+        Returns
+        -------
+        np.ndarray
+            a :math:`N \\times 1` array containing the prediction interval
+            (it's symmetric about the regression line)
+        '''  # noqa: E501
+        if isinstance(time, (float, int)):
+            time = np.array([time])
+
+        n = np.arange(self._weights.shape[0])
+        tn = np.vstack(list(np.power(ti, n) for ti in time))
+
+        regr_var = np.diag((tn @ self._covar) @ tn.T)
+        pred_var = self._noise * np.identity(len(tn))
+
+        stderr = np.sqrt(np.diag(pred_var + regr_var))
+        pi = stderr * scipy.stats.t.ppf((1 + alpha)/2, self._dof)
+        return pi[:, np.newaxis]
+
+    def value(self, time: Union[float, np.ndarray]) -> np.ndarray:
         '''Obtain the value from the least-squares regressor.
 
         Parameters

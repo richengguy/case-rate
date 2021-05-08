@@ -8,6 +8,35 @@ from .. import filters
 from .._types import Datum
 
 
+def _compute_growth(x: np.ndarray) -> np.ndarray:
+    '''Compute the growth factor for a given sequence.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        N-length input sequence
+
+    Returns
+    -------
+    np.ndarray
+        N-length growth sequence, with the first value being '1'
+    '''
+    current_x = x[1:]
+    previous_x = x[:-1]
+
+    # The growth value can only be computed if the previous day's change is
+    # non-zero.
+    valid = previous_x > 0
+    undefined = np.logical_and(current_x > 0, previous_x < 1)
+
+    # Compute the growth only where it's well-defined.
+    growth = np.ones_like(current_x)
+    growth[valid] = current_x[valid] / previous_x[valid]
+    growth[undefined] = np.nan
+
+    return np.pad(growth, (1, 0), constant_values=1)
+
+
 class TimeSeries:
     '''Represent a set of time series data
 
@@ -21,6 +50,9 @@ class TimeSeries:
     daily_change : np.ndarray
         a convenience accessor to obtain the day-to-day changes via a finite
         difference
+    daily_growth : np.ndarray
+        the amount of growth in the time series, defined as
+        ``daily_change[n]/daily_change[n-1]``
     '''
     def __init__(self, data: List[Datum], field: str, min_value: int = 0):
         '''
@@ -85,6 +117,10 @@ class TimeSeries:
     @property
     def daily_change(self) -> np.ndarray:
         return np.squeeze(np.pad(np.diff(self._samples), (1, 0)))
+
+    @property
+    def daily_growth(self) -> np.ndarray:
+        return _compute_growth(self.daily_change)
 
     def local_regression(self, window: int, log_domain: bool = False,
                          order: int = 1) -> List[LeastSquares]:

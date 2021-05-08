@@ -1,11 +1,12 @@
 import numpy as np
 
 from .least_squares import LeastSquares, derivative, evalpoly
-from .timeseries import TimeSeries
+from .timeseries import _compute_growth, TimeSeries
 
 
 __all__ = [
     'smooth',
+    'estimate_growth',
     'estimate_slope',
     'percent_change',
     'growth_factor'
@@ -87,6 +88,34 @@ def estimate_slope(ts: TimeSeries, window: int, order: int = 1,
     return output
 
 
+def estimate_growth(ts: TimeSeries, window: int, order: int = 1,
+                    confidence: float = 0.95) -> np.ndarray:
+    '''Estimate the growth factor at any given point in the time series.
+
+    Parameters
+    ----------
+    ts: :class:`TimeSeries`
+        time series
+    window : int
+        size of the sliding window, in days, used in the slope estimate
+    order : int, optional
+        the order of the polynomial used for the slope estimation; defaults
+        to '1', which assumes the contents of the window are approximately
+        linear
+    confidence : float, optional
+        the desired confidence interval, which defaults to 95%
+
+    Returns
+    -------
+    numpy.ndarray
+        a :math:`N \\times 3`` array containing the growth factor and 95%
+        confidence interval, e.g. each row is ``(slope, upper_ci,
+        lower_ci)``
+    '''
+    slope = estimate_slope(ts, window, order, confidence)[:, 0]
+    return _compute_growth(slope)
+
+
 def percent_change(ts: TimeSeries, window: int, order: int = 1,
                    confidence: float = 0.95) -> np.ndarray:
     '''Estimate the day-over-day percent change.
@@ -147,7 +176,7 @@ def _sequence_growth_factor(sequence: np.ndarray, window: int) -> np.ndarray:
         estimated growth factor at each point in the sequence
     '''
     N = sequence.shape[0]
-    output = np.zeros_like(sequence, dtype=np.float)
+    output = np.zeros_like(sequence, dtype=float)
     output[:] = np.nan
 
     for i in range(N):
