@@ -1,7 +1,7 @@
 import datetime
 import json
 import pathlib
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, NamedTuple, Tuple
 
 import click
 import numpy as np
@@ -9,9 +9,14 @@ import numpy as np
 from ._helpers import _parse_region_selector
 from .. import analysis, sources
 from .._types import Cases, PathLike
-from ..analysis import TimeSeries
+from ..analysis import DailyCasesPredictor, TimeSeries
 from ..report import SourceInfo
 from ..storage import Storage
+
+
+class _PredictOptions(NamedTuple):
+    days: int = 0
+    delay: int = 0
 
 
 def _datatype_converter(obj):
@@ -27,7 +32,8 @@ def _process_country_name(country: str) -> str:
 
 def _output_configuration(output_folder: PathLike,
                           source_info: Dict[str, SourceInfo],
-                          min_confirmed: int, filter_window: int):
+                          min_confirmed: int, filter_window: int,
+                          predict: _PredictOptions):
     output_folder = pathlib.Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -48,6 +54,10 @@ def _output_configuration(output_folder: PathLike,
         'config': {
             'filterWindow': filter_window,
             'minConfirmed': min_confirmed,
+            'predict': {
+                'days': predict.days,
+                'delay': predict.delay
+            }
         }
     }
 
@@ -59,7 +69,8 @@ def _output_configuration(output_folder: PathLike,
 
 
 def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
-                     no_indent: bool, min_confirmed: int, filter_window: int):
+                     no_indent: bool, min_confirmed: int, filter_window: int,
+                     predict: _PredictOptions):
     output_folder = pathlib.Path(output_folder)
     analysis_file = output_folder / pathlib.Path(f'{_process_country_name(country)}.json')
 
@@ -67,9 +78,27 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
 
     series = TimeSeries(data, 'confirmed', min_confirmed)  # type: ignore
     derivative = analysis.estimate_slope(series, filter_window)
-    growth_factor = analysis.growth_factor(series, filter_window)
+    growth_factor = analysis.estimate_growth(series, filter_window)
 
-    entry: Cases
+    predicted_dates: List[datetime.date] = []
+    predicted_cases = np.empty((0,))
+    confidence = np.empty((0,))
+    prediction_window = np.empty((0,))
+
+    if predict.days > 0:
+        predictor = DailyCasesPredictor(analysis_window=filter_window,
+                                        reporting_lag=predict.delay,
+                                        filter_window=filter_window)
+
+        predictor.train(series)
+        num_days = predict.days + predict.delay
+
+        initial_value = derivative[predictor.training_window[-1]][0]
+        predicted_cases, confidence, prediction_window = predictor.predict(initial_value, num_days)
+
+        days_since_start = [datetime.timedelta(days=n) for n in prediction_window.tolist()]
+        predicted_dates = list(series.dates[0] + days for days in days_since_start)
+
     output = {
         'country': country,
         'date': series.dates,
@@ -87,10 +116,15 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
             },
             {
                 'name': 'growthFactor',
-                'interpolated': np.squeeze(growth_factor[:, 0]),
-                'confidenceInterval': np.squeeze(growth_factor[:, 1:])
+                'interpolated': np.squeeze(growth_factor),
+                # 'confidenceInterval': np.squeeze(growth_factor[:, 1:])
             }
-        ]
+        ],
+        'prediction': {
+            'dates': predicted_dates,
+            'cases': predicted_cases,
+            'predictionInterval': confidence
+        }
     }
 
     with analysis_file.open('wt') as f:
@@ -113,12 +147,17 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
               type=click.Path(dir_okay=True, file_okay=False))
 @click.option('--no-indent', is_flag=True, help='Do not indent any JSON output.')
 @click.option('--min-confirmed', nargs=1, type=int, default=100, show_default=True,
-              help='Remove entries lower that the minimum confirmed number.')
+              help='Remove entries lower that the minimum confirmed number.',
+              metavar='CASES')
 @click.option('--filter-window', nargs=1, type=int, default=14, show_default=True,
-              help='Window size when performing least-squares.')
+              help='Window size when performing least-squares.', metavar='DAYS')
+@click.option('--predict', nargs=2, type=int, default=(0, 0),
+              show_default=True, metavar='DAYS DELAY',
+              help='Predict the daily cases DAYS into the future.  The '
+                   'prediction starts DELAY days in the past.')
 @click.pass_obj
 def command(config: dict, countries: Tuple[str], output: str, no_indent: bool,
-            min_confirmed: int, filter_window: int):
+            min_confirmed: int, filter_window: int, predict: Tuple[int, int]):
     '''Generate an analysis from the COVID-19 case numbers.
 
     The command will perform a series of regression analyses on the COVID-19
@@ -126,6 +165,8 @@ def command(config: dict, countries: Tuple[str], output: str, no_indent: bool,
     JSON file for each country/region.  The 'analysis.json' file lists all of
     the available countries/regions as well as the analysis configuration.
     '''
+    predict = _PredictOptions(*predict)
+
     click.secho('Generating Report', bold=True)
     click.secho('Regions: ', bold=True, nl=False)
 
@@ -169,10 +210,11 @@ def command(config: dict, countries: Tuple[str], output: str, no_indent: bool,
         del source_info[None]  # type: ignore
 
     # Write out the analysis configuration.
-    _output_configuration(output, source_info, min_confirmed, filter_window)
+    _output_configuration(output, source_info, min_confirmed, filter_window, predict)
 
     # Process all of the requested countries/regions.
     for country, timeseries in data.items():
-        _output_analysis(output, country, timeseries, no_indent, min_confirmed, filter_window)
+        _output_analysis(output, country, timeseries, no_indent, min_confirmed,
+                         filter_window, predict)
 
     click.echo('Generated analysis...' + click.style('\u2713', fg='green'))
