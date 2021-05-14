@@ -46,17 +46,20 @@ export class Source {
 export class ReportEntry {
     private _base: string;
     private _country: string;
+    private _date: Date;
     private _region: string;
     private _source: Source;
 
     /**
      * Create a new report details instance.
      * @param base base folder where report data may be found
+     * @param date date when the report entry was generated
      * @param jsonObject JSON object containing the report details
      */
-    public constructor(base: string, jsonObject: any)
+    public constructor(base: string, date: Date, jsonObject: any)
     {
         this._base = base;
+        this._date = date;
         this._source = new Source(jsonObject['description'], jsonObject['url'])
 
         var regionIdentifier = jsonObject['name'];
@@ -98,7 +101,7 @@ export class ReportEntry {
             regionFile = `${this._country}_${this._region}.json`;
         }
 
-        let fetchUrl = `${this._base}/${regionFile}`;
+        let fetchUrl = `${this._base}/${regionFile}?t=${this._date.getTime()}`;
         return await TimeSeries.FetchUrlAsync(fetchUrl);
     }
 }
@@ -189,11 +192,13 @@ export class CaseReport {
      * @returns a new case report instance
      */
     public static async LoadAsync(url: string): Promise<CaseReport> {
-        const response = await fetch(`${url}/${kAnalysisFile}`);
+        const timestamp = new Date().getTime();
+        const response = await fetch(`${url}/${kAnalysisFile}?t=${timestamp}`);
         const jsonData = await response.json();
+        const dateGenerated = new Date(jsonData['generated']);
         return new CaseReport(
-            new Date(jsonData['generated']),
-            (<object[]>jsonData['regions']).map(item => new ReportEntry(url, item)),
+            dateGenerated,
+            (<object[]>jsonData['regions']).map(item => new ReportEntry(url, dateGenerated, item)),
             jsonData['config']
         );
     }
