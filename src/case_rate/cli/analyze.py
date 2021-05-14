@@ -133,7 +133,8 @@ def command(config: dict, countries: Tuple[str], output: str, no_indent: bool,
         countries = [None]  # type: ignore
         click.echo('World')
     else:
-        click.echo(click.style('Regions: ', bold=True) + ','.join(countries))
+        click.echo()
+        click.echo(',\n'.join(f'  {country}' for country in countries))
 
     # Set up the input sources.
     input_sources = {
