@@ -1,5 +1,5 @@
 {
-  "generated": "2021-05-13T02:10:02+00:00",
+  "generated": "2021-05-14T02:11:31+00:00",
   "regions": [
     {
       "name": "Canada",
@@ -73,7 +73,7 @@
     },
     {
       "name": "US",
-      "url": "https://github.com/CSSEGISandData/COVID-19/tree/02b290a9870c7758aa7dc7104d3cdbab71c17800",
+      "url": "https://github.com/CSSEGISandData/COVID-19/tree/a9c81700f1d9e1b9e72e07e1643bba810792ea86",
       "description": "JHU-CSSE COVID-19 Report"
     }
   ],
