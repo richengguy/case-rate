@@ -209,7 +209,7 @@ class DailyCasesPredictor:
 
         return self._model.standard_error, validation_error
 
-    def predict(self, current_count: int, num_days: int = 14,
+    def predict(self, current_count: float, num_days: int = 14,
                 alpha: float = 0.95) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         '''Predict the next 'N' days, given the current case count.
 
@@ -218,7 +218,7 @@ class DailyCasesPredictor:
 
         Parameters
         ----------
-        current_count : int
+        current_count : float
             the current case count (i.e. the initial condition)
         num_days : int, optional
             the number of days to predict, by default 14`

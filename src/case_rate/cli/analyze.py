@@ -1,10 +1,13 @@
 import datetime
 import json
+import math
 import pathlib
-from typing import Any, Dict, List, NamedTuple, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 import click
 import numpy as np
+
+# from case_rate.analysis.operations import growth_factor
 
 from ._helpers import _parse_region_selector
 from .. import analysis, sources
@@ -68,6 +71,45 @@ def _output_configuration(output_folder: PathLike,
     click.secho('\u2713', fg='green')
 
 
+def _generate_prediction(series: TimeSeries, initial_value: float,
+                         filter_window: int, predict: _PredictOptions) -> Dict:
+    if predict.days == 0:
+        return {
+            'dates': [],
+            'cases': [],
+            'predictionInterval': []
+        }
+
+    predictor = DailyCasesPredictor(analysis_window=filter_window,
+                                    reporting_lag=predict.delay,
+                                    filter_window=filter_window)
+
+    num_days = predict.days + predict.delay
+
+    predictor.train(series)
+    predicted_cases, confidence, prediction_window = predictor.predict(initial_value, num_days)
+    days_since_start = [datetime.timedelta(days=n) for n in prediction_window.tolist()]
+    dates = [series.dates[0] + days for days in days_since_start]
+
+    return {
+        'dates': dates,
+        'cases': predicted_cases,
+        'predictionInterval': confidence
+    }
+
+
+def _calculate_growth_factor(series: TimeSeries, filter_window: int) -> List[Optional[float]]:
+    def nan_to_none(gf: float) -> Optional[float]:
+        if math.isnan(gf):
+            return None
+        else:
+            return gf
+
+    growth_factor: List[float] = analysis.estimate_growth(series, filter_window).tolist()
+    prepped = list(map(nan_to_none, growth_factor))
+    return prepped
+
+
 def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
                      no_indent: bool, min_confirmed: int, filter_window: int,
                      predict: _PredictOptions):
@@ -78,26 +120,8 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
 
     series = TimeSeries(data, 'confirmed', min_confirmed)  # type: ignore
     derivative = analysis.estimate_slope(series, filter_window)
-    growth_factor = analysis.estimate_growth(series, filter_window)
 
-    predicted_dates: List[datetime.date] = []
-    predicted_cases = np.empty((0,))
-    confidence = np.empty((0,))
-    prediction_window = np.empty((0,))
-
-    if predict.days > 0:
-        predictor = DailyCasesPredictor(analysis_window=filter_window,
-                                        reporting_lag=predict.delay,
-                                        filter_window=filter_window)
-
-        predictor.train(series)
-        num_days = predict.days + predict.delay
-
-        initial_value = derivative[predictor.training_window[-1]][0]
-        predicted_cases, confidence, prediction_window = predictor.predict(initial_value, num_days)
-
-        days_since_start = [datetime.timedelta(days=n) for n in prediction_window.tolist()]
-        predicted_dates = list(series.dates[0] + days for days in days_since_start)
+    initial_value = derivative[-(predict.delay+1)][0]
 
     output = {
         'country': country,
@@ -116,20 +140,16 @@ def _output_analysis(output_folder: PathLike, country: str, data: List[Cases],
             },
             {
                 'name': 'growthFactor',
-                'interpolated': np.squeeze(growth_factor),
-                # 'confidenceInterval': np.squeeze(growth_factor[:, 1:])
+                'interpolated': _calculate_growth_factor(series, filter_window)
             }
         ],
-        'prediction': {
-            'dates': predicted_dates,
-            'cases': predicted_cases,
-            'predictionInterval': confidence
-        }
+        'prediction': _generate_prediction(series, initial_value, filter_window, predict)
     }
 
     with analysis_file.open('wt') as f:
         args: Dict[str, Any] = {
             'default': _datatype_converter,
+            'allow_nan': False
         }
         if no_indent is False:
             args['indent'] = 2
