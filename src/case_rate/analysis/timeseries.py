@@ -8,13 +8,16 @@ from .. import filters
 from .._types import Datum
 
 
-def _compute_growth(x: np.ndarray) -> np.ndarray:
+def _compute_growth(x: np.ndarray, min_x: float = 0.1) -> np.ndarray:
     '''Compute the growth factor for a given sequence.
 
     Parameters
     ----------
     x : np.ndarray
         N-length input sequence
+    min_x : float, optional
+        smallest possible value for 'x' where it can still be considered valid
+        when given a real-valued input sequence; default is '0.1'
 
     Returns
     -------
@@ -24,12 +27,20 @@ def _compute_growth(x: np.ndarray) -> np.ndarray:
     current_x = x[1:]
     previous_x = x[:-1]
 
-    # The growth value can only be computed if the previous day's change is
-    # non-zero.
-    valid = previous_x > 0
-    undefined = np.logical_and(current_x > 0, previous_x < 1)
+    # If *any* of the differences are fractional then it means the input
+    # sequence has been smoothed.
+    is_fractional = np.any(np.abs(current_x - previous_x) < 1)
+
+    # When integer-valued the growth value can only be computed if the previous
+    # day's change is non-zero.  There isn't an equivalent when it's
+    # real-valued.
+    if is_fractional:
+        undefined = np.zeros_like(current_x, dtype=bool)
+    else:
+        undefined = np.logical_and(current_x > 0, previous_x < 1)
 
     # Compute the growth only where it's well-defined.
+    valid = previous_x > min_x
     growth = np.ones_like(current_x)
     growth[valid] = current_x[valid] / previous_x[valid]
     growth[undefined] = np.nan
