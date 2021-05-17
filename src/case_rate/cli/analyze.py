@@ -73,7 +73,7 @@ def _output_configuration(output_folder: PathLike,
 
 def _generate_prediction(series: TimeSeries, initial_value: float,
                          filter_window: int, predict: _PredictOptions) -> Dict:
-    if predict.days == 0:
+    if predict.days == 0 or initial_value < 10:
         return {
             'dates': [],
             'cases': [],
@@ -89,10 +89,9 @@ def _generate_prediction(series: TimeSeries, initial_value: float,
     predictor.train(series)
     predicted_cases, confidence, prediction_window = predictor.predict(initial_value, num_days)
     days_since_start = [datetime.timedelta(days=n) for n in prediction_window.tolist()]
-    dates = [series.dates[0] + days for days in days_since_start]
 
     return {
-        'dates': dates,
+        'dates': [series.dates[0] + days for days in days_since_start],
         'cases': predicted_cases,
         'predictionInterval': confidence
     }
