@@ -120,6 +120,15 @@ function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement)
     });
 }
 
+function plotPredictedCases(timeSeries: TimeSeries, container: HTMLDivElement, context: HTMLCanvasElement) {
+    let predictedCases = timeSeries.prediction;
+    if (predictedCases == null) { return; }
+
+    container.classList.remove('hidden');
+
+    // TODO: Add in the plotting.
+}
+
 function setupRegionSelection(infoRegion: HTMLElement, entry: ReportEntry, regionNames: string[]) {
     if (regionNames.length === 0) {
         infoRegion.innerText = entry.country;
@@ -212,9 +221,12 @@ window.onload = () => {
             let dailyChange = document.getElementById('daily-change') as HTMLCanvasElement;
             let growthFactor = document.getElementById('growth-factor') as HTMLCanvasElement;
             let cumulativeCases = document.getElementById('cumulative-cases') as HTMLCanvasElement;
+            let prediction = document.getElementById('prediction') as HTMLCanvasElement;
+            let predictionContainer = document.getElementById('prediction-container') as HTMLDivElement;
 
             plotDailyChange(ts, dailyChange);
             plotGrowthFactor(ts, growthFactor);
             plotCumulativeCases(ts, cumulativeCases);
+            plotPredictedCases(ts, predictionContainer, prediction);
         });
 };

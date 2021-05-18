@@ -1,7 +1,8 @@
 interface JsonTimeSeries {
     readonly country: string,
     readonly date: Date[],
-    readonly timeseries: JsonSeriesData[]
+    readonly timeseries: JsonSeriesData[],
+    readonly prediction: JsonSeriesPrediction
 }
 
 interface JsonSeriesData {
@@ -9,6 +10,12 @@ interface JsonSeriesData {
     readonly raw?: number[]
     readonly interpolated: number[]
     readonly confidenceInterval?: [number, number][]
+}
+
+interface JsonSeriesPrediction {
+    readonly dates: Date[]
+    readonly cases: number[]
+    readonly predictionInterval: [number, number][]
 }
 
 export class ConfidenceInterval {
@@ -72,6 +79,7 @@ interface SeriesDictionary {
 export class TimeSeries {
     private _dates: Date[];
     private _length: number;
+    private _prediction: JsonSeriesPrediction;
     private _samples: SeriesDictionary;
 
     /**
@@ -82,6 +90,7 @@ export class TimeSeries {
     public constructor (jsonTimeSeries: JsonTimeSeries) {
         this._dates = jsonTimeSeries.date;
         this._length = jsonTimeSeries.date.length;
+        this._prediction = jsonTimeSeries.prediction;
         this._samples = {};
         for (const item of jsonTimeSeries.timeseries) {
             this._samples[item.name] = new SeriesData(item);
@@ -104,6 +113,18 @@ export class TimeSeries {
      * information.
      */
     public get series(): SeriesDictionary { return this._samples; }
+
+    /**
+     * The predicted number of cases for the given time series.  This will be
+     * `null` if no predictions are available.
+     */
+    public get prediction(): JsonSeriesPrediction {
+        if (this._prediction.dates.length > 0) {
+            return this._prediction;
+        } else {
+            return null;
+        }
+    }
 
     /**
      * Fetch a time series from a JSON file.
