@@ -1,6 +1,6 @@
 interface JsonTimeSeries {
     readonly country: string,
-    readonly date: Date[],
+    readonly date: string[],
     readonly timeseries: JsonSeriesData[],
     readonly prediction: JsonSeriesPrediction
 }
@@ -13,7 +13,7 @@ interface JsonSeriesData {
 }
 
 interface JsonSeriesPrediction {
-    readonly dates: Date[]
+    readonly dates: string[]
     readonly cases: number[]
     readonly predictionInterval: [number, number][]
 }
@@ -36,6 +36,43 @@ export class ConfidenceInterval {
     public get lowerInterval(): number { return this._values[1]; }
 }
 
+/**
+ * Stores a time series prediction.
+ */
+export class PredictionData {
+    private _dates: Date[];
+    private _predictedCases: number[];
+    private _confidence: ConfidenceInterval[];
+
+    /**
+     * Create a new PredictionData instance.
+     * @param data the original JSON representation
+     */
+    constructor(data: JsonSeriesPrediction) {
+        this._dates = data.dates.map(d => new Date(d));
+        this._predictedCases = data.cases;
+        this._confidence = data.predictionInterval.map(pi => {
+            return new ConfidenceInterval(pi)
+        });
+    }
+
+    /**
+     * The dates of each of the predicted values.
+     */
+    public get dates(): Date[] { return this._dates; }
+
+    /**
+     * The number of predicted cases at each date.
+     */
+    public get predictedCases(): number[] { return this._predictedCases; }
+
+    /**
+     * The prediction interval for this specific prediction.  The interval will
+     * start very small and widen over the course of the time series.
+     */
+    public get predictionInterval(): ConfidenceInterval[] { return this._confidence; }
+}
+
 export class SeriesData {
     private _raw: number[];
     private _interpolated: number[];
@@ -43,9 +80,7 @@ export class SeriesData {
 
     /**
      * Create a new SeriesData instance.
-     * @param interpolated the set of interpolated values
-     * @param raw the unfiltered series data (optional)
-     * @param confidence the confidence interval on any interpolated data (optional)
+     * @param data the original JSON representation
      */
     constructor(data: JsonSeriesData) {
         this._interpolated = data.interpolated;
@@ -88,7 +123,7 @@ export class TimeSeries {
      * @param jsonData set of time series values
      */
     public constructor (jsonTimeSeries: JsonTimeSeries) {
-        this._dates = jsonTimeSeries.date;
+        this._dates = jsonTimeSeries.date.map(d => new Date(d));
         this._length = jsonTimeSeries.date.length;
         this._prediction = jsonTimeSeries.prediction;
         this._samples = {};
@@ -118,9 +153,9 @@ export class TimeSeries {
      * The predicted number of cases for the given time series.  This will be
      * `null` if no predictions are available.
      */
-    public get prediction(): JsonSeriesPrediction {
+    public get prediction(): PredictionData {
         if (this._prediction.dates.length > 0) {
-            return this._prediction;
+            return new PredictionData(this._prediction);
         } else {
             return null;
         }

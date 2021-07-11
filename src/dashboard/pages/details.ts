@@ -18,36 +18,8 @@ function plotDailyChange(timeSeries: TimeSeries, context: HTMLCanvasElement) {
         Plotting.rawDataPlot(dailyChange, previousDays)
     ];
 
-    let legendConfig: Chart.ChartLegendOptions = {
-        labels: {
-            filter: (item, _) => {
-                return item.text !== 'LOESS Confidence - Lower';
-            }
-        }
-    };
-
-    new Chart(context, {
-        type: 'line',
-        data: {
-            labels: Utilities.getDates(timeSeries),
-            datasets: datasets
-        },
-        options: {
-            maintainAspectRatio: false,
-            legend: legendConfig,
-            scales: {
-                yAxes: [{
-                    ticks: {
-                        min: 0
-                    },
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Cases'
-                    }
-                }]
-            }
-        }
-    });
+    let config = Plotting.createChartConfiguration(Utilities.getDates(timeSeries), datasets);
+    new Chart(context, config);
 }
 
 function plotGrowthFactor(timeSeries: TimeSeries, context: HTMLCanvasElement) {
@@ -60,34 +32,15 @@ function plotGrowthFactor(timeSeries: TimeSeries, context: HTMLCanvasElement) {
         dataset.data[i] = (gf - 1) * 100;
     }
 
-    new Chart(context, {
-        type: 'line',
-        data: {
-            labels: Utilities.getDates(timeSeries),
-            datasets: [dataset]
-        },
-        options: {
-            maintainAspectRatio: false,
-            legend: {
-                display: false
-            },
-            scales: {
-                yAxes: [{
-                    ticks: {
-                        suggestedMin: -25,
-                        suggestedMax: 25,
-                        callback: (value) => {
-                            return value + '%';
-                        }
-                    },
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Relative Growth'
-                    },
-                }]
-            }
-        }
-    });
+    let config = Plotting.createChartConfiguration(Utilities.getDates(timeSeries), [dataset]);
+    config.options.scales.yAxes[0].scaleLabel.labelString = 'Relative Growth';
+    config.options.scales.yAxes[0].ticks = {
+        suggestedMin: -25,
+        suggestedMax: 25,
+        callback: (value) => { return value + '%'; }
+    };
+
+    new Chart(context, config);
 }
 
 function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement) {
@@ -97,27 +50,9 @@ function plotCumulativeCases(timeSeries: TimeSeries, context: HTMLCanvasElement)
     let rawCounts = Plotting.rawDataPlot(totalCases, previousDays);
     let interpolated = Plotting.interpDataPlot(totalCases, previousDays);
 
-    new Chart(context, {
-        type: 'line',
-        data: {
-            labels: Utilities.getDates(timeSeries),
-            datasets: [
-                interpolated,
-                rawCounts
-            ]
-        },
-        options: {
-            maintainAspectRatio: false,
-            scales: {
-                yAxes: [{
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Cumulative Cases'
-                    },
-                }]
-            }
-        }
-    });
+    let config = Plotting.createChartConfiguration(Utilities.getDates(timeSeries), [interpolated, rawCounts]);
+    config.options.scales.yAxes[0].scaleLabel.labelString = 'Cumulative Cases';
+    new Chart(context, config);
 }
 
 function plotPredictedCases(timeSeries: TimeSeries, container: HTMLDivElement, context: HTMLCanvasElement) {
@@ -126,7 +61,18 @@ function plotPredictedCases(timeSeries: TimeSeries, container: HTMLDivElement, c
 
     container.classList.remove('hidden');
 
-    // TODO: Add in the plotting.
+    let datasets: Chart.ChartDataSets[] = [];
+    datasets.push(...Plotting.predictionIntervalPlot(predictedCases));
+    datasets.push(...Plotting.predictedCasesPlot(predictedCases));
+
+    let pastDays = Utilities.numberOfDays(timeSeries.dates[timeSeries.length-1], predictedCases.dates[0]);
+    if (pastDays > 0) {
+        datasets.push(Plotting.interpDataPlot(timeSeries.series['dailyChange'], pastDays));
+        datasets.push(Plotting.rawDataPlot(timeSeries.series['dailyChange'], pastDays));
+    }
+
+    var config = Plotting.createChartConfiguration(predictedCases.dates, datasets);
+    new Chart(context, config);
 }
 
 function setupRegionSelection(infoRegion: HTMLElement, entry: ReportEntry, regionNames: string[]) {
@@ -198,9 +144,6 @@ window.onload = () => {
     }
 
     setupDateSelection();
-
-    // Disable legend selection.
-    Chart.defaults.global.legend.onClick = () => {};
 
     CaseReport.LoadAsync('_analysis')
         .then(cr => {
