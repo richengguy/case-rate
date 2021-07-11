@@ -108,3 +108,9 @@ class CaseTesting(NamedTuple):
             under_investigation=(self.under_investigation +
                                  other.under_investigation)
         )
+
+
+class SourceInfo(NamedTuple):
+    '''Used to specify information about where the data came from.'''
+    description: str
+    url: str
