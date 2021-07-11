@@ -31,6 +31,7 @@ report: assets
 		--min-confirmed 10 \
 		--output dist/_analysis \
 		--no-indent \
+		--predict 7 2 \
 		-c Canada \
 		-c Canada:Alberta \
 		-c "Canada:British Columbia" \

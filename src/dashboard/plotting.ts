@@ -1,7 +1,7 @@
 import * as Chart from 'chart.js';
 
 import * as Colours from './colourTheme';
-import { ConfidenceInterval, SeriesData } from './timeseries';
+import { ConfidenceInterval, PredictionData, SeriesData } from './timeseries';
 import * as Utilities from './utilities';
 
 /**
@@ -74,4 +74,95 @@ export function confIntervalPlot(seriesData: SeriesData, previousDays?: number):
         borderDash: [5, 5],
         borderColor: Colours.kConfidenceIntervalColour,
     }]
+}
+
+/**
+ * Plot the predicted number of cases given some prediction data.
+ * @param prediction prediction time series data
+ * @returns the chart.js dataset object
+ */
+export function predictedCasesPlot(prediction: PredictionData): Chart.ChartDataSets[] {
+    let roundedPrediction = prediction.predictedCases.map(p => Math.round(p));
+    return [{
+        type: 'line',
+        label: 'Predicted Cases',
+        fill: false,
+        data: roundedPrediction,
+        borderColor: Colours.kPredictionColour,
+    }]
+}
+
+/**
+ * Plot a prediction interval diven prediction data.
+ * @param prediction prediction time series data
+ * @returns the chart.js dataset object
+ */
+export function predictionIntervalPlot(prediction: PredictionData) : Chart.ChartDataSets[] {
+    let upperPi = prediction.predictionInterval.map(pi => pi.upperInterval);
+    let lowerPi = prediction.predictionInterval.map(pi => pi.lowerInterval);
+
+    return [{
+        type: 'line',
+        label: 'Prediction Interval',
+        data: upperPi,
+        fill: '+1',
+        pointRadius: 0,
+        borderWidth: 0,
+        backgroundColor: Colours.kPredictionIntervalColour
+    }, {
+        type: 'line',
+        data: lowerPi,
+        fill: false,
+        pointRadius: 0,
+        borderWidth: 0,
+        backgroundColor: Colours.kClearColour
+    }]
+}
+
+/**
+ * Generate a configuration to render some data on a chart.
+ * @param dates the dates used for the chart's horizontal axis
+ * @param charts the data sets to show on the main chart
+ * @returns the customizeable chart configuration
+ */
+export function createChartConfiguration(dates: Date[], charts: Chart.ChartDataSets[]): Chart.ChartConfiguration {
+    let defaultLegendConfig: Chart.ChartLegendOptions = {
+        labels: {
+            filter: (item, _) => {
+                return item.text !== undefined;
+            }
+        }
+    };
+
+    return {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: charts
+        },
+        options: {
+            maintainAspectRatio: false,
+            legend: defaultLegendConfig,
+            scales: {
+                xAxes: [{
+                    type: 'time',
+                    time: {
+                        unit: 'day',
+                        displayFormats: {
+                            day: 'D MMM YYYY'
+                        }
+                    }
+                }],
+                yAxes: [{
+                    ticks: {
+                        min: 0
+                    },
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Cases'
+                    }
+                }]
+            }
+        }
+    }
 }

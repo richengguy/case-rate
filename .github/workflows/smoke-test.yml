@@ -21,8 +21,11 @@ jobs:
     - name: Run a flake8 check
       run: |
         flake8 . --count --statistics
-    - name: Perform a basic integration test
+    - name: Check sources are pulled correctlly.
       run: |
         covid19 info
         covid19 info -c Canada
         covid19 info -c Canada:Ontario
+    - name: Check analysis report can be generated.
+      run: |
+        covid19 analyze --min-confirmed 10 -c Canada

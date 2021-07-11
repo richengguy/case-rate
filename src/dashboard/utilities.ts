@@ -42,6 +42,17 @@ export function getDates(timeSeries: TimeSeries): Date[] {
 type SeriesArray = number[] | ConfidenceInterval[] | Date[];
 
 /**
+ * Compute the number of days between two Date objects.
+ * @param d1 first Date object
+ * @param d2 second Date object
+ * @returns the number of days between t1 and t2
+ */
+export function numberOfDays(d1: Date, d2: Date): number {
+    let deltaT = d1.getTime() - d2.getTime();
+    return deltaT / 86400000;  // number of milliseconds in a day
+}
+
+/**
  * Prune the input time series array so that it retains only the last 'N' days
  * of data.
  * @param data
