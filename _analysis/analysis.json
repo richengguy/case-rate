@@ -1,5 +1,5 @@
 {
-  "generated": "2021-07-11T01:55:15+00:00",
+  "generated": "2021-07-11T21:12:56+00:00",
   "regions": [
     {
       "name": "Canada",
@@ -73,12 +73,16 @@
     },
     {
       "name": "US",
-      "url": "https://github.com/CSSEGISandData/COVID-19/tree/7f734887fac68a4f8c59ed1c70a8a0fb1ab1196d",
+      "url": "https://github.com/CSSEGISandData/COVID-19/tree/f64ff23a2bfed7a67d2099f431fedffc4f8e2567",
       "description": "JHU-CSSE COVID-19 Report"
     }
   ],
   "config": {
     "filterWindow": 14,
-    "minConfirmed": 10
+    "minConfirmed": 10,
+    "predict": {
+      "days": 7,
+      "delay": 2
+    }
   }
 }
