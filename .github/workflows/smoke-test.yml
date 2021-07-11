@@ -29,3 +29,6 @@ jobs:
     - name: Check analysis report can be generated.
       run: |
         covid19 analyze --min-confirmed 10 -c Canada
+    - name: Check HTML render script works correctly.
+      run: |
+        python render_template.py dashboard.jinja2 rendered-page.html
