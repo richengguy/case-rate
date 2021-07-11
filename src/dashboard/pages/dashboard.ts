@@ -12,28 +12,8 @@ function plotDailyChanges(context: HTMLCanvasElement, dailyChange: SeriesData, t
     ];
 
     totalDays = Utilities.pruneArray(totalDays, previousDays) as Date[];
-
-    new Chart(context, {
-        type: 'line',
-        data: {
-            labels: totalDays,
-            datasets: datasets
-        },
-        options: {
-            maintainAspectRatio: false,
-            scales: {
-                yAxes: [{
-                    ticks: {
-                        min: 0
-                    },
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Cases'
-                    }
-                }]
-            }
-        }
-    });
+    let config = Plotting.createChartConfiguration(totalDays, datasets);
+    new Chart(context, config);
 }
 
 function setDetailsPage(stats: HTMLElement, entry: ReportEntry) {
