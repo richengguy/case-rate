@@ -32,3 +32,6 @@ jobs:
     - name: Check HTML render script works correctly.
       run: |
         python render_template.py dashboard.jinja2 rendered-page.html
+        if [ ! -f rendered-page.html ]; then
+          echo "::error::No HTML page was rendered."
+        fi
