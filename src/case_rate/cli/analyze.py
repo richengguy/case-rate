@@ -11,9 +11,8 @@ import numpy as np
 
 from ._helpers import _parse_region_selector
 from .. import analysis, sources
-from .._types import Cases, PathLike
+from .._types import Cases, PathLike, SourceInfo
 from ..analysis import DailyCasesPredictor, TimeSeries
-from ..report import SourceInfo
 from ..storage import Storage
 
 
