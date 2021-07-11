@@ -1,6 +1,6 @@
-/*! tailwindcss v2.1.2 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v2.2.4 | MIT License | https://tailwindcss.com */
 
-/*! modern-normalize v1.0.0 | MIT License | https://github.com/sindresorhus/modern-normalize */
+/*! modern-normalize v1.1.0 | MIT License | https://github.com/sindresorhus/modern-normalize */
 
 /*
 Document
@@ -12,8 +12,8 @@ Use a better box model (opinionated).
 */
 
 *,
-*::before,
-*::after {
+::before,
+::after {
   box-sizing: border-box;
 }
 
@@ -21,7 +21,7 @@ Use a better box model (opinionated).
 Use a more readable tab size (opinionated).
 */
 
-:root {
+html {
   -moz-tab-size: 4;
   -o-tab-size: 4;
      tab-size: 4;
@@ -298,16 +298,6 @@ button {
   background-image: none;
 }
 
-/**
- * Work around a Firefox/IE bug where the transparent `button` background
- * results in a loss of the default `button` focus styles.
- */
-
-button:focus {
-  outline: 1px dotted;
-  outline: 5px auto -webkit-focus-ring-color;
-}
-
 fieldset {
   margin: 0;
   padding: 0;
@@ -378,7 +368,7 @@ body {
   box-sizing: border-box; /* 1 */
   border-width: 0; /* 2 */
   border-style: solid; /* 2 */
-  border-color: #e5e7eb; /* 2 */
+  border-color: currentColor; /* 2 */
 }
 
 /*
@@ -484,11 +474,20 @@ samp {
 }
 
 /**
- * Make replaced elements `display: block` by default as that's
- * the behavior you want almost all of the time. Inspired by
- * CSS Remedy, with `svg` added as well.
+ * 1. Make replaced elements `display: block` by default as that's
+ *    the behavior you want almost all of the time. Inspired by
+ *    CSS Remedy, with `svg` added as well.
  *
- * https://github.com/mozdevs/cssremedy/issues/14
+ *    https://github.com/mozdevs/cssremedy/issues/14
+ * 
+ * 2. Add `vertical-align: middle` to align replaced elements more
+ *    sensibly by default when overriding `display` by adding a
+ *    utility like `inline`.
+ *
+ *    This can trigger a poorly considered linting error in some
+ *    tools but is included by design.
+ * 
+ *    https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210
  */
 
 img,
@@ -499,8 +498,8 @@ audio,
 iframe,
 embed,
 object {
-  display: block;
-  vertical-align: middle;
+  display: block; /* 1 */
+  vertical-align: middle; /* 2 */
 }
 
 /**
@@ -514,6 +513,11 @@ img,
 video {
   max-width: 100%;
   height: auto;
+}
+
+*, ::before, ::after {
+  --tw-border-opacity: 1;
+  border-color: rgba(229, 231, 235, var(--tw-border-opacity));
 }
 
 .container {
@@ -592,80 +596,8 @@ h1
   margin-left: 0.5rem;
 }
 
-.flex {
-  display: flex;
-}
-
-.table {
-  display: table;
-}
-
-.hidden {
-  display: none;
-}
-
-.flex-col {
-  flex-direction: column;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-center {
-  justify-content: center;
-}
-
-.font-sans {
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-}
-
-.font-light {
-  font-weight: 300;
-}
-
-.font-medium {
-  font-weight: 500;
-}
-
-.font-semibold {
-  font-weight: 600;
-}
-
-.font-bold {
-  font-weight: 700;
-}
-
-.h-4 {
-  height: 1rem;
-}
-
-.h-64 {
-  height: 16rem;
-}
-
-.text-xl {
-  font-size: 1.25rem;
-  line-height: 1.75rem;
-}
-
-.text-3xl {
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-}
-
-.list-none {
-  list-style-type: none;
-}
-
-.my-0 {
-  margin-top: 0px;
-  margin-bottom: 0px;
-}
-
-.my-2 {
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
+.static {
+  position: static;
 }
 
 .mx-2 {
@@ -678,8 +610,14 @@ h1
   margin-right: auto;
 }
 
-.mb-1 {
-  margin-bottom: 0.25rem;
+.my-0 {
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+
+.my-2 {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .mt-6 {
@@ -698,46 +636,36 @@ h1
   margin-top: auto;
 }
 
-.py-2 {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+.mb-1 {
+  margin-bottom: 0.25rem;
 }
 
-.pr-8 {
-  padding-right: 2rem;
+.flex {
+  display: flex;
 }
 
-.static {
-  position: static;
+.table {
+  display: table;
 }
 
-* {
-  --tw-shadow: 0 0 #0000;
+.hidden {
+  display: none;
 }
 
-* {
-  --tw-ring-inset: var(--tw-empty,/*!*/ /*!*/);
-  --tw-ring-offset-width: 0px;
-  --tw-ring-offset-color: #fff;
-  --tw-ring-color: rgba(59, 130, 246, 0.5);
-  --tw-ring-offset-shadow: 0 0 #0000;
-  --tw-ring-shadow: 0 0 #0000;
+.h-4 {
+  height: 1rem;
 }
 
-.table-auto {
-  table-layout: auto;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.hover\:underline:hover {
-  text-decoration: underline;
+.h-64 {
+  height: 16rem;
 }
 
 .w-4 {
   width: 1rem;
+}
+
+.table-auto {
+  table-layout: auto;
 }
 
 @-webkit-keyframes spin {
@@ -806,6 +734,82 @@ h1
   }
 }
 
+.list-none {
+  list-style-type: none;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.pr-8 {
+  padding-right: 2rem;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.font-sans {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.text-3xl {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
+.font-light {
+  font-weight: 300;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.hover\:underline:hover {
+  text-decoration: underline;
+}
+
+*, ::before, ::after {
+  --tw-shadow: 0 0 #0000;
+}
+
+*, ::before, ::after {
+  --tw-ring-inset: var(--tw-empty,/*!*/ /*!*/);
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgba(59, 130, 246, 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+}
+
 .filter {
   --tw-blur: var(--tw-empty,/*!*/ /*!*/);
   --tw-brightness: var(--tw-empty,/*!*/ /*!*/);
@@ -823,18 +827,6 @@ h1
 }
 
 @media (min-width: 768px) {
-  .md\:flex-row {
-    flex-direction: row;
-  }
-
-  .md\:justify-start {
-    justify-content: flex-start;
-  }
-
-  .md\:h-96 {
-    height: 24rem;
-  }
-
   .md\:mx-0 {
     margin-left: 0px;
     margin-right: 0px;
@@ -845,8 +837,8 @@ h1
     margin-right: auto;
   }
 
-  .md\:text-left {
-    text-align: left;
+  .md\:h-96 {
+    height: 24rem;
   }
 
   .md\:w-2\/5 {
@@ -859,6 +851,18 @@ h1
 
   .md\:w-4\/6 {
     width: 66.666667%;
+  }
+
+  .md\:flex-row {
+    flex-direction: row;
+  }
+
+  .md\:justify-start {
+    justify-content: flex-start;
+  }
+
+  .md\:text-left {
+    text-align: left;
   }
 }
 
