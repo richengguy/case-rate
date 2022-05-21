@@ -1,28 +1,12 @@
 # COVID-19 Case Rate Tracking
 
 This repository is a COVID-19 tracker that performs some extra analysis on top
-of the existing, published case data.  The tracker currently uses the
-publically-available John Hopkins CSSE
-[COVID-19 dataset](https://github.com/CSSEGISandData/COVID-19).
+of the existing, published case data.  The tracker scrapes data from the
+following sources:
 
-## First, a disclaimer.
-
-I'm not an epidemiologist and I'm not a medical doctor.  Nothing in this repo
-can, or should, be considered "expert advice".  My formal background (PhD) is in
-signal processing and computer vision.  This project is my way of understanding
-what's going on with the outbreak.
-
-Please refer to your relevant national health authorities for up-to-date
-information.  I happen to be Canadian so a lot of the documentation will be
-somewhat Canada-centric.
-
-Some links:
-
- * [Public Health Agency of Canada](https://www.canada.ca/en/public-health/services/diseases/coronavirus-disease-covid-19.html)
- * [US Centres for Disease Control and Prevention](https://www.cdc.gov/coronavirus/2019-nCoV/index.html)
- * [World Health Organization](https://www.who.int/emergencies/diseases/novel-coronavirus-2019)
-
-Finally, this is still a work-in-progress.
+* [John Hopkins CSSE COVID-19 dataset](https://github.com/CSSEGISandData/COVID-19)
+* [Public Health Agency of Canada](https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html#a1)
+* [Public Health Ontario](https://data.ontario.ca/dataset/status-of-covid-19-cases-in-ontario)
 
 ## Why build yet another COVID-19 tracker?
 
@@ -69,52 +53,40 @@ alt="3Blue1Brown Exponential Growth" width="240" height="180" border="10" /></a>
 alt="It's Okay to be Smart" width="240" height="180" border="10" /></a>
 
 They provide a good overview of the underlying mathematics behind an outbreak
-and exponential growth in general.  And for some more general medical context:
+and exponential growth in general.
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=ofSLpDQx1bA
-" target="_blank"><img src="http://img.youtube.com/vi/ofSLpDQx1bA/0.jpg"
-alt="Doctor Asks: Are We Doing The Right Thing?" width="240" height="180" border="10" /></a>
-
-## Using the tool
+## Generating Reports
 
 The best way to set up the development environment is with
-[Conda](https://conda.io/en/latest/):
+[Conda](https://conda.io/en/latest/).  case-rate is meant to run using a GitHub
+Actions workflow and the commands below have not been tested on Windows.
+
+Create and activate the environment with
 
 ```bash
 $ conda env create
+$ conda activate case-rate
 ```
 
-That will ensure that you're using the correct version of Python.  However, the
-packaging doesn't depend on Conda, so, alternatively, you can use:
+Building the web interface requires NodeJS 16.x.  Install the node dependencies
+with
 
 ```bash
-$ pip install .
+$ npm ci
 ```
 
-The `download` command is used to fetch the latest version of the JHU dataset:
+Build the reports with
 
 ```bash
-$ covid19 download
-$ covid19 info -c Canada
-COVID-19 Case Rates
---
-Dataset Path: covid19_repo
-Available Reports: 55
-Country: Canada
-First: 2020-01-26
-  - Confirmed: 1
-  - Recovered: 0
-Last:  2020-03-20
-  - Confirmed: 943
-  - Recovered: 9
+$ make report
 ```
 
-Finally, you can generate an HTML report with `report`, e.g.:
+The HTML report will be in the `dist` folder.
 
+There is also an example Jypter notebook ([algorithm.ipynb]) that shows how the
+time series prediction works.  Running it locally will require installing some
+extra packages into your environment, i.e.,
+
+```bash
+$ pip install jupyter matplotlib ipympl
 ```
-$ covid19 report -c Canada -c US
-```
-
-This will produce an HTML report similar to the image below.
-
-![Example plot](docs/case-report.png)

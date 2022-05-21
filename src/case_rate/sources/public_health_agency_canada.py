@@ -54,7 +54,12 @@ def _to_int(number: str) -> int:
     if number == 'N/A':
         return 0
 
-    return int(number)
+    try:
+        count = int(number)
+    except ValueError:
+        count = int(float(number))
+
+    return count
 
 
 class PublicHealthAgencyCanadaSource(InputSource):
