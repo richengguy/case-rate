@@ -1,7 +1,7 @@
 import csv
 import datetime
 import pathlib
-from typing import Generator
+from typing import Generator, Union
 
 import click
 
@@ -54,7 +54,13 @@ def _to_int(number: str) -> int:
     if number == 'N/A':
         return 0
 
-    return int(number)
+    value: Union[float, int]
+    try:
+        value = int(number)
+    except ValueError:
+        value = float(number)
+
+    return int(value)
 
 
 class PublicHealthAgencyCanadaSource(InputSource):
