@@ -1,10 +1,6 @@
 name: Generate nightly report.
 
 on:
-  # Run this nightly at 9:00pm (EST).
-  schedule:
-    - cron: "0 1 * * *"
-
   # Update anytime 'master' is updated.
   push:
     branches:
