@@ -115,12 +115,13 @@ class PublicHealthAgencyCanadaSource(InputSource):
                 if entry['prname'] == 'Canada':
                     continue
 
+                # NOTE: PHAC doesn't report resolved cases as of 2022-08-26
                 yield Cases(
                     date=_to_date(entry['date']),
                     province=entry['prname'],
                     country='Canada',
-                    confirmed=_to_int(entry['numtotal']),
-                    resolved=_to_int(entry['numrecover']),
+                    confirmed=_to_int(entry['totalcases']),
+                    resolved=-1,
                     deceased=_to_int(entry['numdeaths'])
                 )
 
@@ -131,10 +132,11 @@ class PublicHealthAgencyCanadaSource(InputSource):
                 if entry['prname'] == 'Canada':
                     continue
 
+                # NOTE: PHAC doesn't report testing counts as of 2022-08-26
                 yield CaseTesting(
                     date=_to_date(entry['date']),
                     province=entry['prname'],
                     country='Canada',
-                    tested=_to_int(entry['numtested']),
+                    tested=-1,
                     under_investigation=-1
                 )
